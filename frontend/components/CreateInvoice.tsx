@@ -5,9 +5,92 @@ import { useRouter } from "next/navigation";
 import { Layout } from "./Layout";
 import { ArrowLeft, Calendar, Eye } from "lucide-react";
 import { motion } from "motion/react";
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { parseUnits, decodeEventLog } from "viem";
+import { celo, celoSepolia } from "wagmi/chains";
+import { useMiniPay } from "@/hooks/useMiniPay";
 
+const CONTRACT_ADDRESS = "0xYOUR_DEPLOYED_CONTRACT_ADDRESS" as `0x${string}`;
+const CHAIN = celoSepolia; // switch to celo for mainnet
+
+// Interval enum matches Decimoon1.Interval: 0=weekly, 1=biweekly, 2=monthly
+const INTERVAL_MAP: Record<string, number> = {
+  weekly: 0,
+  biweekly: 1,
+  monthly: 2,
+};
+
+const CONTRACT_ABI = [
+  {
+    inputs: [
+      { internalType: "address", name: "client", type: "address" },
+      { internalType: "string", name: "title", type: "string" },
+      { internalType: "string", name: "description", type: "string" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+      { internalType: "uint256", name: "dueDate", type: "uint256" },
+      { internalType: "bool", name: "isRecurring", type: "bool" },
+      {
+        internalType: "enum Decimoon1.Interval",
+        name: "interval",
+        type: "uint8",
+      },
+    ],
+    name: "createInvoice",
+    outputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "creator",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "client",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "dueDate",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "isRecurring",
+        type: "bool",
+      },
+      {
+        indexed: false,
+        internalType: "enum Decimoon1.Interval",
+        name: "interval",
+        type: "uint8",
+      },
+    ],
+    name: "InvoiceCreated",
+    type: "event",
+  },
+] as const;
+
+// ── Component ──────────────────────────────────────────────────────────────────
 export default function CreateInvoice() {
   const router = useRouter();
+  const { address } = useMiniPay();
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -18,31 +101,59 @@ export default function CreateInvoice() {
     interval: "monthly",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { writeContractAsync, isPending } = useWriteContract();
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const [error, setError] = useState<string | null>(null);
+
+  const { isLoading: isConfirming } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  const isSubmitting = isPending || isConfirming;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
-    // Create invoice
-    const invoice = {
-      id: Date.now().toString(),
-      title: formData.title,
-      description: formData.description,
-      client: formData.clientWallet,
-      amount: parseFloat(formData.amount),
-      dueDate: formData.dueDate,
-      status: "unpaid" as const,
-      date: new Date().toLocaleDateString(),
-      recurring: formData.recurring,
-      interval: formData.interval,
-      createdAt: new Date().toISOString(),
-    };
+    if (!address) {
+      setError("Wallet not connected. Please open this app in MiniPay.");
+      return;
+    }
 
-    // Save to localStorage
-    const stored = localStorage.getItem("invoices");
-    const invoices = stored ? JSON.parse(stored) : [];
-    invoices.unshift(invoice);
-    localStorage.setItem("invoices", JSON.stringify(invoices));
+    try {
+      // Convert due date string to unix timestamp (seconds)
+      const dueDateTimestamp = BigInt(
+        Math.floor(new Date(formData.dueDate).getTime() / 1000),
+      );
 
-    router.push(`/invoice-created/${invoice.id}`);
+      // USDm has 18 decimals
+      const amountInWei = parseUnits(formData.amount, 18);
+
+      const hash = await writeContractAsync({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: "createInvoice",
+        args: [
+          formData.clientWallet as `0x${string}`,
+          formData.title,
+          formData.description,
+          amountInWei,
+          dueDateTimestamp,
+          formData.recurring,
+          INTERVAL_MAP[formData.interval] as 0 | 1 | 2,
+        ],
+        chainId: CHAIN.id,
+      });
+
+      setTxHash(hash);
+
+      // Wait for receipt then extract on-chain invoice ID from event logs
+      // and navigate to invoice-created with the on-chain ID
+      router.push(`/invoice-created/${hash}`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.shortMessage ?? err?.message ?? "Transaction failed");
+    }
   };
 
   const handleChange = (
@@ -124,7 +235,7 @@ export default function CreateInvoice() {
           {/* Amount */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
-              Amount (cUSD)
+              Amount (USDm)
             </label>
             <div className="relative">
               <input
@@ -155,6 +266,7 @@ export default function CreateInvoice() {
                 value={formData.dueDate}
                 onChange={handleChange}
                 required
+                min={new Date().toISOString().split("T")[0]}
                 className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
               />
               <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -207,14 +319,33 @@ export default function CreateInvoice() {
             )}
           </div>
 
+          {/* Error message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
+          {/* Wallet not connected warning */}
+          {!address && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-yellow-700 text-sm">
+              Open this app inside MiniPay to create invoices on-chain.
+            </div>
+          )}
+
           {/* Buttons */}
           <div className="space-y-3 pt-4">
             <button
               type="submit"
-              className="w-full bg-[#1B4332] text-white py-4 rounded-xl hover:opacity-90 transition-opacity"
+              disabled={isSubmitting || !address}
+              className="w-full bg-[#1B4332] text-white py-4 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ fontWeight: 600 }}
             >
-              Create Invoice
+              {isPending
+                ? "Confirm in wallet..."
+                : isConfirming
+                  ? "Confirming on-chain..."
+                  : "Create Invoice"}
             </button>
             <button
               type="button"
