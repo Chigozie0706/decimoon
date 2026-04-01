@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Layout } from "./Layout";
 import { ChevronRight, Wallet } from "lucide-react";
 import { motion } from "motion/react";
+import { useMiniPay } from "@/hooks/useMiniPay";
 
 export default function Onboarding() {
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const { isMiniPay, isConnected } = useMiniPay();
 
   const slides = [
     {
@@ -28,7 +30,6 @@ export default function Onboarding() {
   ];
 
   const handleGetStarted = () => {
-    localStorage.setItem("onboardingSeen", "true");
     router.push("/home");
   };
 
@@ -84,6 +85,13 @@ export default function Onboarding() {
               />
             ))}
           </div>
+
+          {/* Show wallet connection status inside MiniPay */}
+          {isMiniPay && (
+            <p className="text-center text-white/60 text-xs mt-6">
+              {isConnected ? "✓ Wallet connected" : "Connecting wallet..."}
+            </p>
+          )}
         </div>
 
         {/* Bottom Section */}
@@ -100,7 +108,8 @@ export default function Onboarding() {
           ) : (
             <button
               onClick={handleGetStarted}
-              className="w-full bg-[#F4C430] text-[#1B4332] py-4 rounded-xl flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+              disabled={isMiniPay && !isConnected}
+              className="w-full bg-[#F4C430] text-[#1B4332] py-4 rounded-xl flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ fontWeight: 600 }}
             >
               Get Started

@@ -26,6 +26,7 @@ export default function AllInvoices() {
     "all" | "paid" | "unpaid" | "overdue" | "recurring"
   >("all");
 
+  // TODO: replace with on-chain fetch once contract is ready
   useEffect(() => {
     const stored = localStorage.getItem("invoices");
     if (stored) {
@@ -39,7 +40,6 @@ export default function AllInvoices() {
       if (filter !== "recurring" && invoice.status !== filter) return false;
     }
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
@@ -120,7 +120,7 @@ export default function AllInvoices() {
               </p>
               {!searchQuery && (
                 <button
-                  onClick={() => router.push("/create")}
+                  onClick={() => router.push("/create-invoice")}
                   className="bg-[#1B4332] text-white px-6 py-3 rounded-xl hover:opacity-90 transition-opacity"
                   style={{ fontWeight: 600 }}
                 >
@@ -133,7 +133,7 @@ export default function AllInvoices() {
               {filteredInvoices.map((invoice) => (
                 <button
                   key={invoice.id}
-                  onClick={() => router.push(`/invoice/${invoice.id}`)}
+                  onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
                   className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow text-left"
                 >
                   <div className="flex items-start justify-between mb-3">

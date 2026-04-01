@@ -5,6 +5,7 @@ import { Layout } from "./Layout";
 import { StatusBadge } from "./StatusBadge";
 import { Plus, TrendingUp, DollarSign, FileText, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useMiniPay } from "@/hooks/useMiniPay";
 
 interface Invoice {
   id: string;
@@ -17,19 +18,24 @@ interface Invoice {
 
 export default function Home() {
   const router = useRouter();
-  const [walletAddress, setWalletAddress] = useState("");
+  const { address, isConnected } = useMiniPay();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [usdmBalance, setUsdmBalance] = useState("0.00");
+  const { getUSDmBalance } = useMiniPay();
 
+  // Load invoices — will be replaced with on-chain fetch once contract is ready
   useEffect(() => {
-    const address = localStorage.getItem("walletAddress") || "0x0000...0000";
-    setWalletAddress(address);
-
-    // Load invoices from localStorage
     const stored = localStorage.getItem("invoices");
     if (stored) {
       setInvoices(JSON.parse(stored));
     }
   }, []);
+
+  // Fetch live USDm balance from chain
+  useEffect(() => {
+    if (!address) return;
+    getUSDmBalance(address).then(setUsdmBalance).catch(console.error);
+  }, [address]);
 
   const totalEarnedThisMonth = invoices
     .filter(
@@ -59,6 +65,13 @@ export default function Home() {
 
   const recentInvoices = invoices.slice(0, 5);
 
+  // Format address for display
+  const displayAddress = address
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : "Not connected";
+
+  const avatarLetters = address ? address.substring(2, 4).toUpperCase() : "??";
+
   return (
     <Layout>
       {/* Header */}
@@ -69,12 +82,12 @@ export default function Home() {
               className="w-12 h-12 bg-[#F4C430] rounded-full flex items-center justify-center text-[#1B4332]"
               style={{ fontWeight: 700 }}
             >
-              {walletAddress.substring(2, 4).toUpperCase()}
+              {avatarLetters}
             </div>
             <div>
               <p className="text-white/80 text-xs">Wallet Address</p>
               <p className="text-white" style={{ fontWeight: 600 }}>
-                {walletAddress}
+                {displayAddress}
               </p>
             </div>
           </div>
@@ -82,14 +95,15 @@ export default function Home() {
 
         {/* Earnings */}
         <div className="bg-[#1B4332]/50 rounded-2xl p-6 border border-white/10">
-          <p className="text-white/80 text-sm mb-2">Total Earned This Month</p>
-          <h2 className="text-white text-4xl mb-4" style={{ fontWeight: 700 }}>
-            {totalEarnedThisMonth.toFixed(2)}{" "}
-            <span className="text-2xl">cUSD</span>
+          <p className="text-white/80 text-sm mb-1">USDm Balance</p>
+          <h2 className="text-white text-4xl mb-2" style={{ fontWeight: 700 }}>
+            {parseFloat(usdmBalance).toFixed(2)}{" "}
+            <span className="text-2xl">USDm</span>
           </h2>
+          <p className="text-white/60 text-xs mb-4">Live on-chain balance</p>
           <div className="flex items-center gap-2 text-[#F4C430] text-sm">
             <TrendingUp className="w-4 h-4" />
-            <span>All time: {totalEarnedAllTime.toFixed(2)} cUSD</span>
+            <span>All time earned: {totalEarnedAllTime.toFixed(2)} cUSD</span>
           </div>
         </div>
       </div>
@@ -98,7 +112,7 @@ export default function Home() {
       <div className="px-6 py-6">
         <div className="grid grid-cols-2 gap-4 mb-6">
           <button
-            onClick={() => router.push("/create")}
+            onClick={() => router.push("/create-invoice")}
             className="bg-[#1B4332] text-white py-6 rounded-xl flex flex-col items-center justify-center gap-2 hover:opacity-90 transition-opacity"
           >
             <Plus className="w-6 h-6" />
@@ -180,7 +194,7 @@ export default function Home() {
               {recentInvoices.map((invoice) => (
                 <button
                   key={invoice.id}
-                  onClick={() => router.push(`/invoice/${invoice.id}`)}
+                  onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
                   className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow text-left"
                 >
                   <div className="flex items-center justify-between mb-2">

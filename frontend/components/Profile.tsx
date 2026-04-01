@@ -10,29 +10,60 @@ import {
   Settings,
   ExternalLink,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useDisconnect } from "wagmi";
+import { useMiniPay } from "@/hooks/useMiniPay";
+
+interface Invoice {
+  id: string;
+  amount: number;
+  status: "paid" | "unpaid" | "overdue";
+}
 
 export default function Profile() {
   const router = useRouter();
-  // const walletAddress = localStorage.getItem("walletAddress") || "0x000...0000";
+  const { address, isConnected } = useMiniPay();
+  const { disconnect } = useDisconnect();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  // const handleDisconnect = () => {
-  //   if (confirm("Are you sure you want to disconnect your wallet?")) {
-  //     localStorage.clear();
-  //     router.push("/");
-  //   }
-  // };
+  // Load invoices — will be replaced with on-chain fetch once contract is ready
+  useEffect(() => {
+    const stored = localStorage.getItem("invoices");
+    if (stored) {
+      setInvoices(JSON.parse(stored));
+    }
+  }, []);
 
-  // Get stats from invoices
-  // const stored = localStorage.getItem("invoices");
-  const invoices = true ? [] : [];
+  const handleDisconnect = () => {
+    if (confirm("Are you sure you want to disconnect your wallet?")) {
+      disconnect();
+      router.push("/onboarding");
+    }
+  };
+
+  const handleCopyAddress = () => {
+    if (!address) return;
+    navigator.clipboard.writeText(address);
+    alert("Wallet address copied!");
+  };
 
   const totalInvoices = invoices.length;
   const totalEarned = invoices
-    .filter((inv: any) => inv.status === "paid")
-    .reduce((sum: number, inv: any) => sum + inv.amount, 0);
+    .filter((inv) => inv.status === "paid")
+    .reduce((sum, inv) => sum + inv.amount, 0);
   const pendingAmount = invoices
-    .filter((inv: any) => inv.status === "unpaid")
-    .reduce((sum: number, inv: any) => sum + inv.amount, 0);
+    .filter((inv) => inv.status === "unpaid")
+    .reduce((sum, inv) => sum + inv.amount, 0);
+
+  const displayAddress = address
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : "Not connected";
+
+  const avatarLetters = address ? address.substring(2, 4).toUpperCase() : "??";
+
+  const explorerUrl = address
+    ? `https://explorer.celo.org/address/${address}`
+    : "https://explorer.celo.org";
 
   return (
     <Layout>
@@ -44,19 +75,16 @@ export default function Profile() {
               className="w-24 h-24 bg-[#F4C430] rounded-full flex items-center justify-center text-[#1B4332] mb-4 text-3xl"
               style={{ fontWeight: 700 }}
             >
-              {"0x000...0000".substring(2, 4).toUpperCase()}
+              {avatarLetters}
             </div>
             <h1 className="text-white text-xl mb-2" style={{ fontWeight: 700 }}>
               My Profile
             </h1>
             <p className="text-white/80 text-sm font-mono mb-1">
-              {"0x000...0000"}
+              {displayAddress}
             </p>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText("0x000...0000");
-                alert("Wallet address copied!");
-              }}
+              onClick={handleCopyAddress}
               className="text-[#F4C430] text-sm hover:underline"
             >
               Copy Address
@@ -93,7 +121,7 @@ export default function Profile() {
           {/* Menu Items */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
             <button
-              onClick={() => router.push("/recurring")}
+              onClick={() => router.push("/recurring-invoice")}
               className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
             >
               <div className="flex items-center gap-3">
@@ -126,7 +154,7 @@ export default function Profile() {
             </button>
 
             <a
-              href="https://explorer.celo.org"
+              href={explorerUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
@@ -164,7 +192,7 @@ export default function Profile() {
 
           {/* Disconnect Button */}
           <button
-            // onClick={handleDisconnect}
+            onClick={handleDisconnect}
             className="w-full bg-[#EF4444] text-white py-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
             style={{ fontWeight: 600 }}
           >
