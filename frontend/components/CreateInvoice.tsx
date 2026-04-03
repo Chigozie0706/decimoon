@@ -6,90 +6,23 @@ import { Layout } from "./Layout";
 import { ArrowLeft, Calendar, Eye } from "lucide-react";
 import { motion } from "motion/react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseUnits, decodeEventLog } from "viem";
-import { celo, celoSepolia } from "wagmi/chains";
-import { useMiniPay } from "@/hooks/useMiniPay";
+import { parseUnits } from "viem";
+import { celoSepolia } from "wagmi/chains";
+import { useWallet } from "@/hooks/use-wallet";
+import contractAbi from "../contract/abi.json";
+const CONTRACT_ADDRESS =
+  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
+const CHAIN = celoSepolia;
 
-const CONTRACT_ADDRESS = "0xYOUR_DEPLOYED_CONTRACT_ADDRESS" as `0x${string}`;
-const CHAIN = celoSepolia; // switch to celo for mainnet
-
-// Interval enum matches Decimoon1.Interval: 0=weekly, 1=biweekly, 2=monthly
 const INTERVAL_MAP: Record<string, number> = {
   weekly: 0,
   biweekly: 1,
   monthly: 2,
 };
 
-const CONTRACT_ABI = [
-  {
-    inputs: [
-      { internalType: "address", name: "client", type: "address" },
-      { internalType: "string", name: "title", type: "string" },
-      { internalType: "string", name: "description", type: "string" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
-      { internalType: "uint256", name: "dueDate", type: "uint256" },
-      { internalType: "bool", name: "isRecurring", type: "bool" },
-      {
-        internalType: "enum Decimoon1.Interval",
-        name: "interval",
-        type: "uint8",
-      },
-    ],
-    name: "createInvoice",
-    outputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "creator",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "client",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "dueDate",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "bool",
-        name: "isRecurring",
-        type: "bool",
-      },
-      {
-        indexed: false,
-        internalType: "enum Decimoon1.Interval",
-        name: "interval",
-        type: "uint8",
-      },
-    ],
-    name: "InvoiceCreated",
-    type: "event",
-  },
-] as const;
-
-// ── Component ──────────────────────────────────────────────────────────────────
 export default function CreateInvoice() {
   const router = useRouter();
-  const { address } = useMiniPay();
+  const { address, isMiniPay, isFarcaster } = useWallet(); // ← updated
 
   const [formData, setFormData] = useState({
     title: "",
@@ -101,37 +34,38 @@ export default function CreateInvoice() {
     interval: "monthly",
   });
 
-  const { writeContractAsync, isPending } = useWriteContract();
+  const writeContract = useWriteContract();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [error, setError] = useState<string | null>(null);
-
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: txHash,
   });
-
-  const isSubmitting = isPending || isConfirming;
+  const isSubmitting = writeContract.isPending || isConfirming;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (!address) {
-      setError("Wallet not connected. Please open this app in MiniPay.");
+      setError(
+        isMiniPay
+          ? "Wallet not connected. Please restart MiniPay."
+          : isFarcaster
+            ? "Wallet not connected. Please restart the Farcaster app."
+            : "No wallet detected.",
+      );
       return;
     }
 
     try {
-      // Convert due date string to unix timestamp (seconds)
       const dueDateTimestamp = BigInt(
         Math.floor(new Date(formData.dueDate).getTime() / 1000),
       );
-
-      // USDm has 18 decimals
       const amountInWei = parseUnits(formData.amount, 18);
 
-      const hash = await writeContractAsync({
+      const hash = await writeContract.mutateAsync({
         address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
+        abi: contractAbi.abi,
         functionName: "createInvoice",
         args: [
           formData.clientWallet as `0x${string}`,
@@ -146,9 +80,6 @@ export default function CreateInvoice() {
       });
 
       setTxHash(hash);
-
-      // Wait for receipt then extract on-chain invoice ID from event logs
-      // and navigate to invoice-created with the on-chain ID
       router.push(`/invoice-created/${hash}`);
     } catch (err: any) {
       console.error(err);
@@ -172,7 +103,6 @@ export default function CreateInvoice() {
   return (
     <Layout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/* Header */}
         <div className="bg-[#1B4332] px-6 py-6 flex items-center gap-4">
           <button onClick={() => router.back()} className="text-white">
             <ArrowLeft className="w-6 h-6" />
@@ -182,9 +112,7 @@ export default function CreateInvoice() {
           </h1>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Title */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Invoice Title
@@ -200,7 +128,6 @@ export default function CreateInvoice() {
             />
           </div>
 
-          {/* Description */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Description
@@ -216,7 +143,6 @@ export default function CreateInvoice() {
             />
           </div>
 
-          {/* Client Wallet Address */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Client Wallet Address
@@ -232,31 +158,27 @@ export default function CreateInvoice() {
             />
           </div>
 
-          {/* Amount */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Amount (USDm)
             </label>
-            <div className="relative">
-              <input
-                type="number"
-                name="amount"
-                value={formData.amount}
-                onChange={handleChange}
-                placeholder="0.00"
-                required
-                step="0.01"
-                min="0"
-                className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none text-2xl"
-                style={{ fontWeight: 700 }}
-              />
-            </div>
+            <input
+              type="number"
+              name="amount"
+              value={formData.amount}
+              onChange={handleChange}
+              placeholder="0.00"
+              required
+              step="0.01"
+              min="0"
+              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none text-2xl"
+              style={{ fontWeight: 700 }}
+            />
             <p className="text-xs text-gray-500 mt-2">
               2% platform fee will be deducted per payment
             </p>
           </div>
 
-          {/* Due Date */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">Due Date</label>
             <div className="relative">
@@ -273,7 +195,6 @@ export default function CreateInvoice() {
             </div>
           </div>
 
-          {/* Recurring */}
           <div className="bg-white rounded-xl p-4 border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -319,21 +240,20 @@ export default function CreateInvoice() {
             )}
           </div>
 
-          {/* Error message */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
               {error}
             </div>
           )}
 
-          {/* Wallet not connected warning */}
+          {/* ← updated warning covers both MiniPay and Farcaster */}
           {!address && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-yellow-700 text-sm">
-              Open this app inside MiniPay to create invoices on-chain.
+              Open this app inside MiniPay or Farcaster to create invoices
+              on-chain.
             </div>
           )}
 
-          {/* Buttons */}
           <div className="space-y-3 pt-4">
             <button
               type="submit"
@@ -341,7 +261,7 @@ export default function CreateInvoice() {
               className="w-full bg-[#1B4332] text-white py-4 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ fontWeight: 600 }}
             >
-              {isPending
+              {writeContract.isPending
                 ? "Confirm in wallet..."
                 : isConfirming
                   ? "Confirming on-chain..."
