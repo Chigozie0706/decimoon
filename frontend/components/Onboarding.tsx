@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { Layout } from "./Layout";
 import { ChevronRight, Wallet } from "lucide-react";
 import { motion } from "motion/react";
-import { useMiniPay } from "@/hooks/useMiniPay";
+import { useWallet } from "@/hooks/use-wallet"; // updated import
 
 export default function Onboarding() {
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const { isMiniPay, isConnected } = useMiniPay();
+  const { isMiniPay, isFarcaster, isConnected } = useWallet();
 
   const slides = [
     {
@@ -32,6 +32,9 @@ export default function Onboarding() {
   const handleGetStarted = () => {
     router.push("/home");
   };
+
+  // true when running inside either MiniPay or Farcaster
+  const isInApp = isMiniPay || isFarcaster;
 
   return (
     <Layout showNav={false}>
@@ -86,8 +89,8 @@ export default function Onboarding() {
             ))}
           </div>
 
-          {/* Show wallet connection status inside MiniPay */}
-          {isMiniPay && (
+          {/* Show wallet status when inside MiniPay or Farcaster */}
+          {isInApp && (
             <p className="text-center text-white/60 text-xs mt-6">
               {isConnected ? "✓ Wallet connected" : "Connecting wallet..."}
             </p>
@@ -108,7 +111,7 @@ export default function Onboarding() {
           ) : (
             <button
               onClick={handleGetStarted}
-              disabled={isMiniPay && !isConnected}
+              disabled={isInApp && !isConnected}
               className="w-full bg-[#F4C430] text-[#1B4332] py-4 rounded-xl flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ fontWeight: 600 }}
             >
