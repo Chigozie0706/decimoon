@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 /**
  * @title Decimoon
  * @notice On-chain invoicing for MiniPay / Celo — pay and receive in cUSD
  * @dev Works with any ERC-20 stablecoin (cUSD on Celo mainnet: 0x765DE816845861e75A25fCA122bb6898B8B1282a)
  */
+contract Decimoon is ReentrancyGuard, Ownable2Step {
+    using SafeERC20 for IERC20;
 
-interface IERC20 {
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool);
-    function transfer(address to, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
+    // ─────────────────────────────────────────────
+    //  Types
+    // ─────────────────────────────────────────────
 
-contract Decimoon {
     enum Status {
         Unpaid,
         Paid,
@@ -47,17 +47,15 @@ contract Decimoon {
         uint256 totalCollected; // lifetime collected on this invoice
         uint256 createdAt;
         uint256 paidAt;
-        bytes32 txHash; // last payment tx reference (off-chain indexer use)
     }
 
     // ─────────────────────────────────────────────
     //  State
     // ─────────────────────────────────────────────
 
-    address public owner;
     IERC20 public stablecoin;
 
-    uint256 public platformFeeBps = 200; // 2% expressed in basis points
+    uint256 public platformFeeBps = 200; // 2% in basis points
     uint256 public constant MAX_FEE_BPS = 1000; // hard cap at 10%
     address public feeRecipient;
 
@@ -113,7 +111,6 @@ contract Decimoon {
     //  Errors
     // ─────────────────────────────────────────────
 
-    error NotAuthorized();
     error InvoiceNotFound();
     error AlreadyPaid();
     error AlreadyCancelled();
@@ -121,16 +118,12 @@ contract Decimoon {
     error InvalidAmount();
     error InvalidDueDate();
     error FeeTooHigh();
-    error TransferFailed();
+    error ZeroAddress();
+    error NotCreator();
 
     // ─────────────────────────────────────────────
     //  Modifiers
     // ─────────────────────────────────────────────
-
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert NotAuthorized();
-        _;
-    }
 
     modifier invoiceExists(uint256 id) {
         if (invoices[id].id == 0) revert InvoiceNotFound();
@@ -142,11 +135,16 @@ contract Decimoon {
     // ─────────────────────────────────────────────
 
     /**
-     * @param _stablecoin  ERC-20 token used for payments (cUSD on Celo)
+     * @param _stablecoin    ERC-20 token used for payments (cUSD on Celo)
      * @param _feeRecipient  Address that receives platform fees
      */
-    constructor(address _stablecoin, address _feeRecipient) {
-        owner = msg.sender;
+    constructor(
+        address _stablecoin,
+        address _feeRecipient
+    ) Ownable(msg.sender) {
+        if (_stablecoin == address(0)) revert ZeroAddress();
+        if (_feeRecipient == address(0)) revert ZeroAddress();
+
         stablecoin = IERC20(_stablecoin);
         feeRecipient = _feeRecipient;
     }
@@ -176,7 +174,7 @@ contract Decimoon {
     ) external returns (uint256 id) {
         if (amount == 0) revert InvalidAmount();
         if (dueDate != 0 && dueDate <= block.timestamp) revert InvalidDueDate();
-        if (isRecurring && interval == Interval.None) revert InvalidAmount(); // must set interval
+        if (isRecurring && interval == Interval.None) revert InvalidAmount();
 
         id = _nextId++;
 
@@ -196,8 +194,7 @@ contract Decimoon {
             nextDueDate: nextDue,
             totalCollected: 0,
             createdAt: block.timestamp,
-            paidAt: 0,
-            txHash: bytes32(0)
+            paidAt: 0
         });
 
         _creatorInvoices[msg.sender].push(id);
@@ -222,20 +219,21 @@ contract Decimoon {
 
     /**
      * @notice Pay an invoice. Caller must have approved this contract to spend `amount` cUSD.
-     * @dev For recurring invoices the status resets to Unpaid with a new due date.
+     * @dev Follows checks-effects-interactions pattern. Protected by nonReentrant.
      * @param id  Invoice ID to pay
      */
-    function payInvoice(uint256 id) external invoiceExists(id) {
+    function payInvoice(uint256 id) external nonReentrant invoiceExists(id) {
         Invoice storage inv = invoices[id];
 
+        // ── Checks ────────────────────────────────
         if (inv.status == Status.Paid && !inv.isRecurring) revert AlreadyPaid();
         if (inv.status == Status.Cancelled) revert AlreadyCancelled();
-
-        // Enforce client restriction
         if (inv.client != address(0) && inv.client != msg.sender)
             revert WrongClient();
 
-        // Auto-mark overdue if past due (non-blocking, just status update)
+        // ── Effects ───────────────────────────────
+
+        // Auto-mark overdue if past due date
         if (
             inv.dueDate != 0 &&
             block.timestamp > inv.dueDate &&
@@ -245,34 +243,12 @@ contract Decimoon {
             emit InvoiceMarkedOverdue(id);
         }
 
-        // Calculate fee split
         uint256 fee = (inv.amount * platformFeeBps) / 10_000;
         uint256 creatorAmount = inv.amount - fee;
 
-        // Pull payment from payer
-        bool ok1 = stablecoin.transferFrom(
-            msg.sender,
-            inv.creator,
-            creatorAmount
-        );
-        bool ok2 = fee > 0
-            ? stablecoin.transferFrom(msg.sender, feeRecipient, fee)
-            : true;
-        if (!ok1 || !ok2) revert TransferFailed();
-
         inv.totalCollected += inv.amount;
 
-        emit InvoicePaid(
-            id,
-            msg.sender,
-            inv.amount,
-            fee,
-            creatorAmount,
-            block.timestamp
-        );
-
         if (inv.isRecurring) {
-            // Roll to next cycle
             uint256 nextDue = _nextDueDate(
                 inv.nextDueDate > 0 ? inv.nextDueDate : block.timestamp,
                 inv.interval
@@ -286,6 +262,24 @@ contract Decimoon {
             inv.status = Status.Paid;
             inv.paidAt = block.timestamp;
         }
+
+        emit InvoicePaid(
+            id,
+            msg.sender,
+            inv.amount,
+            fee,
+            creatorAmount,
+            block.timestamp
+        );
+
+        // ── Interactions ──────────────────────────
+        // Pull full amount from payer into this contract first,
+        // then distribute — eliminates partial transfer risk.
+        stablecoin.safeTransferFrom(msg.sender, address(this), inv.amount);
+        stablecoin.safeTransfer(inv.creator, creatorAmount);
+        if (fee > 0) {
+            stablecoin.safeTransfer(feeRecipient, fee);
+        }
     }
 
     // ─────────────────────────────────────────────
@@ -297,7 +291,8 @@ contract Decimoon {
      */
     function cancelInvoice(uint256 id) external invoiceExists(id) {
         Invoice storage inv = invoices[id];
-        if (inv.creator != msg.sender) revert NotAuthorized();
+
+        if (inv.creator != msg.sender) revert NotCreator();
         if (inv.status == Status.Paid) revert AlreadyPaid();
         if (inv.status == Status.Cancelled) revert AlreadyCancelled();
 
@@ -310,7 +305,7 @@ contract Decimoon {
     // ─────────────────────────────────────────────
 
     /**
-     * @notice Anyone can call this to mark an invoice as overdue once the due date has passed.
+     * @notice Anyone can call this to mark an invoice overdue once the due date has passed.
      *         Useful for off-chain keepers / bots.
      */
     function markOverdue(uint256 id) external invoiceExists(id) {
@@ -347,7 +342,7 @@ contract Decimoon {
     }
 
     /**
-     * @notice Returns (fee, creatorReceives) for a given amount at current fee rate.
+     * @notice Returns (fee, creatorReceives) for a given amount at the current fee rate.
      *         Useful for UI preview before payment.
      */
     function calculateFee(
@@ -379,17 +374,14 @@ contract Decimoon {
      * @notice Update fee recipient wallet.
      */
     function setFeeRecipient(address newRecipient) external onlyOwner {
+        if (newRecipient == address(0)) revert ZeroAddress();
         emit FeeRecipientUpdated(feeRecipient, newRecipient);
         feeRecipient = newRecipient;
     }
 
-    /**
-     * @notice Transfer contract ownership.
-     */
-    function transferOwnership(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert NotAuthorized();
-        owner = newOwner;
-    }
+    // NOTE: transferOwnership() and acceptOwnership() are inherited from Ownable2Step.
+    // Two-step process: owner proposes → new owner must explicitly accept.
+    // This prevents accidental loss of ownership from a typo.
 
     // ─────────────────────────────────────────────
     //  Internal Helpers
