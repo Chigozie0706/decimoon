@@ -13,7 +13,7 @@ const USDM_ADDRESS = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
 export function useWallet() {
   const [isMiniPay, setIsMiniPay] = useState(false);
   const [isFarcaster, setIsFarcaster] = useState(false);
-  const { connect } = useConnect();
+  const { mutate: connect } = useConnect();
   const { address, isConnected, connector, chain, status } = useConnection();
   const publicClient = usePublicClient({ chainId: celo.id });
 
