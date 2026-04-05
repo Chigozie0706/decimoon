@@ -5,7 +5,60 @@ import { Layout } from "./Layout";
 import { StatusBadge } from "./StatusBadge";
 import { Plus, TrendingUp, DollarSign, FileText, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useMiniPay } from "@/hooks/useMiniPay";
+import { useWallet } from "@/hooks/use-wallet";
+import { useReadContract, useReadContracts } from "wagmi";
+import { formatUnits } from "viem";
+import { celoSepolia } from "wagmi/chains";
+
+const CONTRACT_ADDRESS =
+  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
+const CHAIN = celoSepolia;
+
+const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
+  0: "unpaid",
+  1: "paid",
+  2: "overdue",
+  3: "overdue",
+};
+
+const CONTRACT_ABI = [
+  {
+    inputs: [{ internalType: "address", name: "creator", type: "address" }],
+    name: "getCreatorInvoices",
+    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "getInvoice",
+    outputs: [
+      {
+        components: [
+          { internalType: "uint256", name: "id", type: "uint256" },
+          { internalType: "address", name: "creator", type: "address" },
+          { internalType: "address", name: "client", type: "address" },
+          { internalType: "string", name: "title", type: "string" },
+          { internalType: "string", name: "description", type: "string" },
+          { internalType: "uint256", name: "amount", type: "uint256" },
+          { internalType: "uint256", name: "dueDate", type: "uint256" },
+          { internalType: "uint8", name: "status", type: "uint8" },
+          { internalType: "bool", name: "isRecurring", type: "bool" },
+          { internalType: "uint8", name: "interval", type: "uint8" },
+          { internalType: "uint256", name: "nextDueDate", type: "uint256" },
+          { internalType: "uint256", name: "totalCollected", type: "uint256" },
+          { internalType: "uint256", name: "createdAt", type: "uint256" },
+          { internalType: "uint256", name: "paidAt", type: "uint256" },
+        ],
+        internalType: "struct Decimoon1.Invoice",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 interface Invoice {
   id: string;
@@ -18,58 +71,114 @@ interface Invoice {
 
 export default function Home() {
   const router = useRouter();
-  const { address, isConnected } = useMiniPay();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const { address, isConnected, getUSDmBalance } = useWallet();
   const [usdmBalance, setUsdmBalance] = useState("0.00");
-  const { getUSDmBalance } = useMiniPay();
 
-  // Load invoices — will be replaced with on-chain fetch once contract is ready
-  useEffect(() => {
-    const stored = localStorage.getItem("invoices");
-    if (stored) {
-      setInvoices(JSON.parse(stored));
-    }
-  }, []);
-
-  // Fetch live USDm balance from chain
+  // Fetch live USDm balance
   useEffect(() => {
     if (!address) return;
     getUSDmBalance(address).then(setUsdmBalance).catch(console.error);
   }, [address]);
 
-  const totalEarnedThisMonth = invoices
-    .filter(
-      (inv) =>
-        inv.status === "paid" &&
-        new Date(inv.date).getMonth() === new Date().getMonth(),
-    )
-    .reduce((sum, inv) => sum + inv.amount, 0);
+  // Step 1: fetch creator invoice IDs
+  const { data: invoiceIds } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: "getCreatorInvoices",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+    chainId: CHAIN.id,
+  });
 
-  const totalEarnedAllTime = invoices
-    .filter((inv) => inv.status === "paid")
-    .reduce((sum, inv) => sum + inv.amount, 0);
+  const ids = (invoiceIds as bigint[] | undefined) ?? [];
 
-  const unpaidCount = invoices.filter((inv) => inv.status === "unpaid").length;
-  const paidCount = invoices.filter((inv) => inv.status === "paid").length;
-  const overdueCount = invoices.filter(
-    (inv) => inv.status === "overdue",
-  ).length;
+  // Step 2: batch fetch all invoices — only last 5 for home screen
+  const recentIds = ids.slice(-5).reverse();
+  const { data: invoiceResults } = useReadContracts({
+    contracts: recentIds.map((id) => ({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: "getInvoice" as const,
+      args: [id] as const,
+      chainId: CHAIN.id,
+    })),
+    query: { enabled: recentIds.length > 0 },
+  });
 
-  const unpaidAmount = invoices
-    .filter((inv) => inv.status === "unpaid")
-    .reduce((sum, inv) => sum + inv.amount, 0);
-  const paidAmount = totalEarnedAllTime;
-  const overdueAmount = invoices
-    .filter((inv) => inv.status === "overdue")
-    .reduce((sum, inv) => sum + inv.amount, 0);
+  // Step 3: fetch ALL invoices for stats (separate batch)
+  const { data: allInvoiceResults } = useReadContracts({
+    contracts: ids.map((id) => ({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: "getInvoice" as const,
+      args: [id] as const,
+      chainId: CHAIN.id,
+    })),
+    query: { enabled: ids.length > 0 },
+  });
 
-  const recentInvoices = invoices.slice(0, 5);
+  // Map recent invoices for display
+  const recentInvoices: Invoice[] = (invoiceResults ?? [])
+    .filter((r) => r.status === "success" && !!r.result)
+    .map((r) => {
+      const inv = r.result as {
+        id: bigint;
+        title: string;
+        client: `0x${string}`;
+        amount: bigint;
+        status: number;
+        createdAt: bigint;
+      };
+      return {
+        id: inv.id.toString(),
+        title: inv.title,
+        client: `${inv.client.slice(0, 6)}...${inv.client.slice(-4)}`,
+        amount: parseFloat(formatUnits(inv.amount, 18)),
+        status: STATUS_MAP[inv.status] ?? "unpaid",
+        date: new Date(Number(inv.createdAt) * 1000).toLocaleDateString(),
+      };
+    });
 
-  // Format address for display
+  // Map all invoices for stats
+  const allInvoices: Invoice[] = (allInvoiceResults ?? [])
+    .filter((r) => r.status === "success" && !!r.result)
+    .map((r) => {
+      const inv = r.result as {
+        id: bigint;
+        title: string;
+        client: `0x${string}`;
+        amount: bigint;
+        status: number;
+        createdAt: bigint;
+      };
+      return {
+        id: inv.id.toString(),
+        title: inv.title,
+        client: inv.client,
+        amount: parseFloat(formatUnits(inv.amount, 18)),
+        status: STATUS_MAP[inv.status] ?? "unpaid",
+        date: new Date(Number(inv.createdAt) * 1000).toLocaleDateString(),
+      };
+    });
+
+  // Stats
+  const unpaidCount = allInvoices.filter((i) => i.status === "unpaid").length;
+  const paidCount = allInvoices.filter((i) => i.status === "paid").length;
+  const overdueCount = allInvoices.filter((i) => i.status === "overdue").length;
+  const unpaidAmount = allInvoices
+    .filter((i) => i.status === "unpaid")
+    .reduce((s, i) => s + i.amount, 0);
+  const paidAmount = allInvoices
+    .filter((i) => i.status === "paid")
+    .reduce((s, i) => s + i.amount, 0);
+  const overdueAmount = allInvoices
+    .filter((i) => i.status === "overdue")
+    .reduce((s, i) => s + i.amount, 0);
+  const totalEarnedAllTime = paidAmount;
+
   const displayAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : "Not connected";
-
   const avatarLetters = address ? address.substring(2, 4).toUpperCase() : "??";
 
   return (
@@ -93,7 +202,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Earnings */}
+        {/* Balance */}
         <div className="bg-[#1B4332]/50 rounded-2xl p-6 border border-white/10">
           <p className="text-white/80 text-sm mb-1">USDm Balance</p>
           <h2 className="text-white text-4xl mb-2" style={{ fontWeight: 700 }}>
@@ -103,7 +212,7 @@ export default function Home() {
           <p className="text-white/60 text-xs mb-4">Live on-chain balance</p>
           <div className="flex items-center gap-2 text-[#F4C430] text-sm">
             <TrendingUp className="w-4 h-4" />
-            <span>All time earned: {totalEarnedAllTime.toFixed(2)} cUSD</span>
+            <span>All time earned: {totalEarnedAllTime.toFixed(2)} USDm</span>
           </div>
         </div>
       </div>
@@ -138,7 +247,7 @@ export default function Home() {
               {unpaidCount}
             </p>
             <p className="text-xs text-gray-500">
-              {unpaidAmount.toFixed(0)} cUSD
+              {unpaidAmount.toFixed(2)} USDm
             </p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -150,7 +259,7 @@ export default function Home() {
               {paidCount}
             </p>
             <p className="text-xs text-gray-500">
-              {paidAmount.toFixed(0)} cUSD
+              {paidAmount.toFixed(2)} USDm
             </p>
           </div>
           <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -162,7 +271,7 @@ export default function Home() {
               {overdueCount}
             </p>
             <p className="text-xs text-gray-500">
-              {overdueAmount.toFixed(0)} cUSD
+              {overdueAmount.toFixed(2)} USDm
             </p>
           </div>
         </div>
@@ -214,7 +323,8 @@ export default function Home() {
                       className="text-xl text-[#1B4332]"
                       style={{ fontWeight: 700 }}
                     >
-                      {invoice.amount} cUSD
+                      {invoice.amount.toFixed(2)}{" "}
+                      <span className="text-sm">USDm</span>
                     </p>
                   </div>
                 </button>
