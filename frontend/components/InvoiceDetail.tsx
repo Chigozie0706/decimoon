@@ -188,7 +188,7 @@ export default function InvoiceDetail() {
 
   const handleShare = () => {
     if (typeof window === "undefined") return;
-    const link = `${window.location.origin}/invoice-detail/${inv.id.toString()}`;
+    const link = `${window.location.origin}/invoice-details/${inv.id.toString()}`;
     navigator.clipboard.writeText(link);
     toast.success("Invoice link copied!");
   };

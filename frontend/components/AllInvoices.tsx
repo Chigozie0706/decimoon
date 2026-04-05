@@ -357,7 +357,7 @@ export default function AllInvoices() {
               {sortedInvoices.map((invoice) => (
                 <button
                   key={invoice.id}
-                  onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
+                  onClick={() => router.push(`/invoice-details/${invoice.id}`)}
                   className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow text-left"
                 >
                   <div className="flex items-start justify-between mb-3">
