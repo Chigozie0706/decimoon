@@ -97,6 +97,36 @@ export default function InvoiceDetail() {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Add USDm ABI for approval
+  const USDM_ABI = [
+    {
+      inputs: [
+        { internalType: "address", name: "spender", type: "address" },
+        { internalType: "uint256", name: "amount", type: "uint256" },
+      ],
+      name: "approve",
+      outputs: [{ internalType: "bool", name: "", type: "bool" }],
+      stateMutability: "nonpayable",
+      type: "function",
+    },
+    {
+      inputs: [
+        { internalType: "address", name: "owner", type: "address" },
+        { internalType: "address", name: "spender", type: "address" },
+      ],
+      name: "allowance",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    },
+  ] as const;
+
+  // USDm token address (what the contract pulls from)
+  const USDM_TOKEN =
+    CHAIN.id === celoSepolia.id
+      ? ("0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1" as const)
+      : ("0x765DE816845861e75A25fCA122bb6898B8B1282a" as const);
+
   const invoiceId = BigInt(id as string);
 
   // Fetch invoice from contract
@@ -201,8 +231,29 @@ export default function InvoiceDetail() {
 
     setError(null);
     setIsPending(true);
+
     try {
-      const hash = await walletClient.writeContract({
+      const amountInWei = inv.amount; // already in wei from contract
+
+      // Step 1: Approve contract to spend USDm
+      toast.info("Step 1/2: Approving USDm spend...");
+      const approveHash = await walletClient.writeContract({
+        address: USDM_TOKEN,
+        abi: USDM_ABI,
+        functionName: "approve",
+        args: [CONTRACT_ADDRESS, amountInWei],
+        feeCurrency: FEE_CURRENCY,
+        chain: CHAIN,
+        account: address,
+      });
+
+      // Wait for approval to confirm
+      toast.info("Waiting for approval confirmation...");
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+
+      // Step 2: Pay the invoice
+      toast.info("Step 2/2: Sending payment...");
+      const payHash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
         functionName: "payInvoice",
@@ -211,10 +262,10 @@ export default function InvoiceDetail() {
         chain: CHAIN,
         account: address,
       });
-      setTxHash(hash);
+
+      setTxHash(payHash);
       toast.success("Payment submitted! Confirming...");
-      // Refetch after confirmation
-      setTimeout(() => refetch(), 3000);
+      setTimeout(() => refetch(), 5000);
     } catch (err: any) {
       console.error(err);
       const msg = err?.shortMessage ?? err?.message ?? "Payment failed";
@@ -280,19 +331,28 @@ export default function InvoiceDetail() {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <p className="text-xs text-gray-500 mb-1">Invoice ID</p>
-                <p className="text-sm font-mono" style={{ fontWeight: 600 }}>
+                <p
+                  className="text-sm text-gray-600 font-mono"
+                  style={{ fontWeight: 600 }}
+                >
                   #{inv.id.toString()}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-500 mb-1">Created</p>
-                <p className="text-sm" style={{ fontWeight: 600 }}>
+                <p
+                  className="text-sm  text-gray-600"
+                  style={{ fontWeight: 600 }}
+                >
                   {createdAt}
                 </p>
               </div>
             </div>
 
-            <h2 className="text-2xl mb-2" style={{ fontWeight: 700 }}>
+            <h2
+              className="text-2xl text-gray-600 mb-2"
+              style={{ fontWeight: 700 }}
+            >
               {inv.title}
             </h2>
             <p className="text-gray-600 mb-6">{inv.description}</p>
@@ -459,9 +519,9 @@ export default function InvoiceDetail() {
                       <Wallet className="w-5 h-5" />
                     )}
                     {isPending
-                      ? "Confirm in wallet..."
+                      ? "Step 1/2: Approving..."
                       : isConfirming
-                        ? "Confirming payment..."
+                        ? "Step 2/2: Confirming..."
                         : `Pay ${amount.toFixed(2)} USDm`}
                   </button>
                 ) : (
