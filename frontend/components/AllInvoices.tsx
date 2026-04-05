@@ -14,15 +14,13 @@ const CONTRACT_ADDRESS =
   "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
 const CHAIN = celoSepolia;
 
-// Status enum from contract: 0=unpaid, 1=paid, 2=overdue, 3=cancelled
 const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
   0: "unpaid",
   1: "paid",
   2: "overdue",
-  3: "overdue", // cancelled shown as overdue in UI
+  3: "overdue",
 };
 
-// Interval enum from contract: 0=weekly, 1=biweekly, 2=monthly
 const INTERVAL_MAP: Record<number, string> = {
   0: "weekly",
   1: "biweekly",
@@ -33,6 +31,13 @@ const CONTRACT_ABI = [
   {
     inputs: [{ internalType: "address", name: "creator", type: "address" }],
     name: "getCreatorInvoices",
+    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "client", type: "address" }],
+    name: "getClientInvoices",
     outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
     stateMutability: "view",
     type: "function",
@@ -72,6 +77,7 @@ interface Invoice {
   id: string;
   title: string;
   client: string;
+  creator: string;
   amount: number;
   status: "paid" | "unpaid" | "overdue";
   dueDate: string;
@@ -80,16 +86,62 @@ interface Invoice {
   interval?: string;
 }
 
+function useInvoices(ids: bigint[]) {
+  const { data: invoiceResults, isLoading } = useReadContracts({
+    contracts: ids.map((id) => ({
+      address: CONTRACT_ADDRESS,
+      abi: CONTRACT_ABI,
+      functionName: "getInvoice" as const,
+      args: [id] as const,
+      chainId: CHAIN.id,
+    })),
+    query: { enabled: ids.length > 0 },
+  });
+
+  const invoices: Invoice[] = (invoiceResults ?? [])
+    .filter((r) => r.status === "success" && !!r.result)
+    .map((r) => {
+      const inv = r.result as {
+        id: bigint;
+        title: string;
+        client: `0x${string}`;
+        creator: `0x${string}`;
+        amount: bigint;
+        status: number;
+        dueDate: bigint;
+        createdAt: bigint;
+        isRecurring: boolean;
+        interval: number;
+      };
+      return {
+        id: inv.id.toString(),
+        title: inv.title,
+        client: inv.client,
+        creator: inv.creator,
+        amount: parseFloat(formatUnits(inv.amount, 18)),
+        status: STATUS_MAP[inv.status] ?? "unpaid",
+        dueDate: new Date(Number(inv.dueDate) * 1000).toLocaleDateString(),
+        date: new Date(Number(inv.createdAt) * 1000).toLocaleDateString(),
+        recurring: inv.isRecurring,
+        interval: INTERVAL_MAP[inv.interval],
+      };
+    })
+    .reverse();
+
+  return { invoices, isLoading };
+}
+
 export default function AllInvoices() {
   const router = useRouter();
   const { address } = useWallet();
+  const [tab, setTab] = useState<"sent" | "received">("sent");
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<
     "all" | "paid" | "unpaid" | "overdue" | "recurring"
   >("all");
 
-  // Step 1: fetch all invoice IDs for this creator
-  const { data: invoiceIds, isLoading: isLoadingIds } = useReadContract({
+  // Sent invoices (creator)
+  const { data: creatorIds, isLoading: isLoadingCreatorIds } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: CONTRACT_ABI,
     functionName: "getCreatorInvoices",
@@ -98,43 +150,43 @@ export default function AllInvoices() {
     chainId: CHAIN.id,
   });
 
-  // Step 2: batch fetch all invoices by ID
-  const ids = (invoiceIds as bigint[] | undefined) ?? [];
-  const { data: invoiceResults, isLoading: isLoadingInvoices } =
-    useReadContracts({
-      contracts: ids.map((id) => ({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        functionName: "getInvoice" as const,
-        args: [id] as const,
-        chainId: CHAIN.id,
-      })),
-      query: { enabled: ids.length > 0 },
-    });
+  // Received invoices (client)
+  const { data: clientIds, isLoading: isLoadingClientIds } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: "getClientInvoices",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+    chainId: CHAIN.id,
+  });
 
-  // Step 3: map contract data to UI shape
-  const invoices: Invoice[] = (invoiceResults ?? [])
-    .filter((r) => r.status === "success" && r.result)
-    .map((r) => {
-      const inv = r.result as any;
-      return {
-        id: inv.id.toString(),
-        title: inv.title,
-        client: inv.client,
-        amount: parseFloat(formatUnits(inv.amount, 18)),
-        status: STATUS_MAP[inv.status as number] ?? "unpaid",
-        dueDate: new Date(Number(inv.dueDate) * 1000).toLocaleDateString(),
-        date: new Date(Number(inv.createdAt) * 1000).toLocaleDateString(),
-        recurring: inv.isRecurring,
-        interval: INTERVAL_MAP[inv.interval as number],
-      };
-    })
-    .reverse(); // most recent first
+  const sentIds = (creatorIds as bigint[] | undefined) ?? [];
+  const receivedIds = (clientIds as bigint[] | undefined) ?? [];
 
-  const isLoading = isLoadingIds || isLoadingInvoices;
+  const { invoices: sentInvoices, isLoading: isLoadingSent } =
+    useInvoices(sentIds);
+  const { invoices: receivedInvoices, isLoading: isLoadingReceived } =
+    useInvoices(receivedIds);
 
-  const filteredInvoices = invoices.filter((invoice) => {
-    if (filter !== "all") {
+  const isLoading =
+    isLoadingCreatorIds ||
+    isLoadingClientIds ||
+    isLoadingSent ||
+    isLoadingReceived;
+
+  const activeInvoices = tab === "sent" ? sentInvoices : receivedInvoices;
+
+  // Filters only apply to sent tab — received always shows unpaid/overdue first
+  const sentFilters = [
+    "all",
+    "paid",
+    "unpaid",
+    "overdue",
+    "recurring",
+  ] as const;
+
+  const filteredInvoices = activeInvoices.filter((invoice) => {
+    if (tab === "sent" && filter !== "all") {
       if (filter === "recurring" && !invoice.recurring) return false;
       if (filter !== "recurring" && invoice.status !== filter) return false;
     }
@@ -149,13 +201,14 @@ export default function AllInvoices() {
     return true;
   });
 
-  const filters = [
-    { key: "all", label: "All" },
-    { key: "paid", label: "Paid" },
-    { key: "unpaid", label: "Unpaid" },
-    { key: "overdue", label: "Overdue" },
-    { key: "recurring", label: "Recurring" },
-  ] as const;
+  // Sort received: unpaid/overdue first
+  const sortedInvoices =
+    tab === "received"
+      ? [...filteredInvoices].sort((a, b) => {
+          const order = { unpaid: 0, overdue: 1, paid: 2 };
+          return order[a.status] - order[b.status];
+        })
+      : filteredInvoices;
 
   return (
     <Layout>
@@ -163,7 +216,7 @@ export default function AllInvoices() {
         {/* Header */}
         <div className="bg-[#1B4332] px-6 py-6">
           <h1 className="text-white text-2xl mb-4" style={{ fontWeight: 700 }}>
-            All Invoices
+            Invoices
           </h1>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -177,29 +230,80 @@ export default function AllInvoices() {
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="bg-white px-6 py-4 border-b border-gray-200 overflow-x-auto">
-          <div className="flex gap-2 min-w-max">
-            {filters.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                  filter === f.key
-                    ? "bg-[#1B4332] text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-                style={{ fontWeight: 600 }}
-              >
-                {f.label}
-              </button>
-            ))}
+        {/* Sent / Received tabs */}
+        <div className="bg-white px-6 pt-4 border-b border-gray-200">
+          <div className="flex gap-1 mb-4">
+            <button
+              onClick={() => {
+                setTab("sent");
+                setFilter("all");
+              }}
+              className={`flex-1 py-2 rounded-xl text-sm transition-colors ${
+                tab === "sent"
+                  ? "bg-[#1B4332] text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+              style={{ fontWeight: 600 }}
+            >
+              Sent
+              {sentInvoices.length > 0 && (
+                <span className="ml-2 bg-white/20 text-xs px-1.5 py-0.5 rounded-full">
+                  {sentInvoices.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setTab("received");
+                setFilter("all");
+              }}
+              className={`flex-1 py-2 rounded-xl text-sm transition-colors ${
+                tab === "received"
+                  ? "bg-[#1B4332] text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+              style={{ fontWeight: 600 }}
+            >
+              Received
+              {/* Badge for unpaid received invoices */}
+              {receivedInvoices.filter(
+                (i) => i.status === "unpaid" || i.status === "overdue",
+              ).length > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {
+                    receivedInvoices.filter(
+                      (i) => i.status === "unpaid" || i.status === "overdue",
+                    ).length
+                  }
+                </span>
+              )}
+            </button>
           </div>
+
+          {/* Filter pills — only show on Sent tab */}
+          {tab === "sent" && (
+            <div className="flex gap-2 overflow-x-auto pb-4 min-w-max">
+              {sentFilters.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-4 py-2 rounded-full text-sm transition-colors capitalize ${
+                    filter === f
+                      ? "bg-[#1B4332] text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                  style={{ fontWeight: 600 }}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Invoice List */}
         <div className="p-6">
-          {/* Loading state */}
+          {/* Loading */}
           {isLoading && (
             <div className="text-center py-16">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1B4332] mx-auto mb-3" />
@@ -220,22 +324,22 @@ export default function AllInvoices() {
             </div>
           )}
 
-          {/* Empty state */}
-          {!isLoading && address && filteredInvoices.length === 0 && (
+          {/* Empty */}
+          {!isLoading && address && sortedInvoices.length === 0 && (
             <div className="text-center py-16">
               <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <h3
                 className="text-xl mb-2 text-gray-600"
                 style={{ fontWeight: 700 }}
               >
-                {searchQuery ? "No results found" : "No invoices yet"}
+                {tab === "sent" ? "No invoices sent yet" : "No invoices to pay"}
               </h3>
               <p className="text-gray-500 mb-6">
-                {searchQuery
-                  ? "Try adjusting your search or filters"
-                  : "Create your first invoice to get started"}
+                {tab === "sent"
+                  ? "Create your first invoice to get started"
+                  : "You're all caught up!"}
               </p>
-              {!searchQuery && (
+              {tab === "sent" && (
                 <button
                   onClick={() => router.push("/create-invoice")}
                   className="bg-[#1B4332] text-white px-6 py-3 rounded-xl hover:opacity-90 transition-opacity"
@@ -247,10 +351,10 @@ export default function AllInvoices() {
             </div>
           )}
 
-          {/* Invoice list */}
-          {!isLoading && filteredInvoices.length > 0 && (
+          {/* List */}
+          {!isLoading && sortedInvoices.length > 0 && (
             <div className="space-y-3">
-              {filteredInvoices.map((invoice) => (
+              {sortedInvoices.map((invoice) => (
                 <button
                   key={invoice.id}
                   onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
@@ -262,8 +366,10 @@ export default function AllInvoices() {
                         {invoice.title}
                       </h4>
                       <p className="text-sm text-gray-600">
-                        {invoice.client.slice(0, 10)}...
-                        {invoice.client.slice(-8)}
+                        {tab === "sent" ? "To: " : "From: "}
+                        {tab === "sent"
+                          ? `${invoice.client.slice(0, 6)}...${invoice.client.slice(-4)}`
+                          : `${invoice.creator.slice(0, 6)}...${invoice.creator.slice(-4)}`}
                       </p>
                     </div>
                     <StatusBadge status={invoice.status} />
@@ -278,13 +384,21 @@ export default function AllInvoices() {
                         </span>
                       )}
                     </div>
-                    <p
-                      className="text-2xl text-[#1B4332]"
-                      style={{ fontWeight: 700 }}
-                    >
-                      {invoice.amount.toFixed(2)}{" "}
-                      <span className="text-sm">USDm</span>
-                    </p>
+                    <div className="text-right">
+                      <p
+                        className="text-xl text-[#1B4332]"
+                        style={{ fontWeight: 700 }}
+                      >
+                        {invoice.amount.toFixed(2)}{" "}
+                        <span className="text-sm">USDm</span>
+                      </p>
+                      {/* Pay button inline for received unpaid invoices */}
+                      {tab === "received" && invoice.status === "unpaid" && (
+                        <span className="text-xs text-white bg-[#1B4332] px-2 py-0.5 rounded-full mt-1 inline-block">
+                          Tap to pay
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
