@@ -1,10 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Layout } from "../components/Layout";
 import { StatusBadge } from "./StatusBadge";
 import { Search, FileText } from "lucide-react";
+import { useReadContract, useReadContracts } from "wagmi";
+import { useWallet } from "@/hooks/use-wallet";
+import { formatUnits } from "viem";
+import { celoSepolia } from "wagmi/chains";
+
+const CONTRACT_ADDRESS =
+  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
+const CHAIN = celoSepolia;
+
+// Status enum from contract: 0=unpaid, 1=paid, 2=overdue, 3=cancelled
+const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
+  0: "unpaid",
+  1: "paid",
+  2: "overdue",
+  3: "overdue", // cancelled shown as overdue in UI
+};
+
+// Interval enum from contract: 0=weekly, 1=biweekly, 2=monthly
+const INTERVAL_MAP: Record<number, string> = {
+  0: "weekly",
+  1: "biweekly",
+  2: "monthly",
+};
+
+const CONTRACT_ABI = [
+  {
+    inputs: [{ internalType: "address", name: "creator", type: "address" }],
+    name: "getCreatorInvoices",
+    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "getInvoice",
+    outputs: [
+      {
+        components: [
+          { internalType: "uint256", name: "id", type: "uint256" },
+          { internalType: "address", name: "creator", type: "address" },
+          { internalType: "address", name: "client", type: "address" },
+          { internalType: "string", name: "title", type: "string" },
+          { internalType: "string", name: "description", type: "string" },
+          { internalType: "uint256", name: "amount", type: "uint256" },
+          { internalType: "uint256", name: "dueDate", type: "uint256" },
+          { internalType: "uint8", name: "status", type: "uint8" },
+          { internalType: "bool", name: "isRecurring", type: "bool" },
+          { internalType: "uint8", name: "interval", type: "uint8" },
+          { internalType: "uint256", name: "nextDueDate", type: "uint256" },
+          { internalType: "uint256", name: "totalCollected", type: "uint256" },
+          { internalType: "uint256", name: "createdAt", type: "uint256" },
+          { internalType: "uint256", name: "paidAt", type: "uint256" },
+        ],
+        internalType: "struct Decimoon1.Invoice",
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 interface Invoice {
   id: string;
@@ -14,32 +76,68 @@ interface Invoice {
   status: "paid" | "unpaid" | "overdue";
   dueDate: string;
   date: string;
-  recurring?: boolean;
+  recurring: boolean;
   interval?: string;
 }
 
 export default function AllInvoices() {
   const router = useRouter();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const { address } = useWallet();
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<
     "all" | "paid" | "unpaid" | "overdue" | "recurring"
   >("all");
 
-  // TODO: replace with on-chain fetch once contract is ready
-  useEffect(() => {
-    const stored = localStorage.getItem("invoices");
-    if (stored) {
-      setInvoices(JSON.parse(stored));
-    }
-  }, []);
+  // Step 1: fetch all invoice IDs for this creator
+  const { data: invoiceIds, isLoading: isLoadingIds } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: "getCreatorInvoices",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+    chainId: CHAIN.id,
+  });
+
+  // Step 2: batch fetch all invoices by ID
+  const ids = (invoiceIds as bigint[] | undefined) ?? [];
+  const { data: invoiceResults, isLoading: isLoadingInvoices } =
+    useReadContracts({
+      contracts: ids.map((id) => ({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: "getInvoice" as const,
+        args: [id] as const,
+        chainId: CHAIN.id,
+      })),
+      query: { enabled: ids.length > 0 },
+    });
+
+  // Step 3: map contract data to UI shape
+  const invoices: Invoice[] = (invoiceResults ?? [])
+    .filter((r) => r.status === "success" && r.result)
+    .map((r) => {
+      const inv = r.result as any;
+      return {
+        id: inv.id.toString(),
+        title: inv.title,
+        client: inv.client,
+        amount: parseFloat(formatUnits(inv.amount, 18)),
+        status: STATUS_MAP[inv.status as number] ?? "unpaid",
+        dueDate: new Date(Number(inv.dueDate) * 1000).toLocaleDateString(),
+        date: new Date(Number(inv.createdAt) * 1000).toLocaleDateString(),
+        recurring: inv.isRecurring,
+        interval: INTERVAL_MAP[inv.interval as number],
+      };
+    })
+    .reverse(); // most recent first
+
+  const isLoading = isLoadingIds || isLoadingInvoices;
 
   const filteredInvoices = invoices.filter((invoice) => {
     if (filter !== "all") {
       if (filter === "recurring" && !invoice.recurring) return false;
       if (filter !== "recurring" && invoice.status !== filter) return false;
     }
-
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
@@ -48,7 +146,6 @@ export default function AllInvoices() {
         invoice.id.includes(query)
       );
     }
-
     return true;
   });
 
@@ -68,8 +165,6 @@ export default function AllInvoices() {
           <h1 className="text-white text-2xl mb-4" style={{ fontWeight: 700 }}>
             All Invoices
           </h1>
-
-          {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -104,7 +199,29 @@ export default function AllInvoices() {
 
         {/* Invoice List */}
         <div className="p-6">
-          {filteredInvoices.length === 0 ? (
+          {/* Loading state */}
+          {isLoading && (
+            <div className="text-center py-16">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1B4332] mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">Loading invoices...</p>
+            </div>
+          )}
+
+          {/* Not connected */}
+          {!address && !isLoading && (
+            <div className="text-center py-16 text-gray-400">
+              <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg" style={{ fontWeight: 700 }}>
+                Wallet not connected
+              </p>
+              <p className="text-sm mt-1">
+                Open this app in MiniPay or Farcaster to view your invoices
+              </p>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!isLoading && address && filteredInvoices.length === 0 && (
             <div className="text-center py-16">
               <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <h3
@@ -128,7 +245,10 @@ export default function AllInvoices() {
                 </button>
               )}
             </div>
-          ) : (
+          )}
+
+          {/* Invoice list */}
+          {!isLoading && filteredInvoices.length > 0 && (
             <div className="space-y-3">
               {filteredInvoices.map((invoice) => (
                 <button
@@ -162,7 +282,8 @@ export default function AllInvoices() {
                       className="text-2xl text-[#1B4332]"
                       style={{ fontWeight: 700 }}
                     >
-                      {invoice.amount} <span className="text-sm">cUSD</span>
+                      {invoice.amount.toFixed(2)}{" "}
+                      <span className="text-sm">USDm</span>
                     </p>
                   </div>
                 </button>
