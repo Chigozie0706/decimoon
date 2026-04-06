@@ -20,6 +20,8 @@ import { walletActions, formatUnits, parseUnits } from "viem";
 import { celoSepolia } from "wagmi/chains";
 import { useWallet } from "@/hooks/use-wallet";
 import { useState } from "react";
+import { CONTRACT_ABI, USDM_ABI, USDM_TOKEN } from "@/lib/contract";
+import { waitForTransactionReceipt } from "viem/actions";
 
 const CONTRACT_ADDRESS =
   "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
@@ -43,52 +45,6 @@ const INTERVAL_MAP: Record<number, string> = {
   2: "monthly",
 };
 
-const CONTRACT_ABI = [
-  {
-    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
-    name: "getInvoice",
-    outputs: [
-      {
-        components: [
-          { internalType: "uint256", name: "id", type: "uint256" },
-          { internalType: "address", name: "creator", type: "address" },
-          { internalType: "address", name: "client", type: "address" },
-          { internalType: "string", name: "title", type: "string" },
-          { internalType: "string", name: "description", type: "string" },
-          { internalType: "uint256", name: "amount", type: "uint256" },
-          { internalType: "uint256", name: "dueDate", type: "uint256" },
-          { internalType: "uint8", name: "status", type: "uint8" },
-          { internalType: "bool", name: "isRecurring", type: "bool" },
-          { internalType: "uint8", name: "interval", type: "uint8" },
-          { internalType: "uint256", name: "nextDueDate", type: "uint256" },
-          { internalType: "uint256", name: "totalCollected", type: "uint256" },
-          { internalType: "uint256", name: "createdAt", type: "uint256" },
-          { internalType: "uint256", name: "paidAt", type: "uint256" },
-        ],
-        internalType: "struct Decimoon1.Invoice",
-        name: "",
-        type: "tuple",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
-    name: "payInvoice",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
-    name: "cancelInvoice",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
 export default function InvoiceDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -96,36 +52,6 @@ export default function InvoiceDetail() {
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Add USDm ABI for approval
-  const USDM_ABI = [
-    {
-      inputs: [
-        { internalType: "address", name: "spender", type: "address" },
-        { internalType: "uint256", name: "amount", type: "uint256" },
-      ],
-      name: "approve",
-      outputs: [{ internalType: "bool", name: "", type: "bool" }],
-      stateMutability: "nonpayable",
-      type: "function",
-    },
-    {
-      inputs: [
-        { internalType: "address", name: "owner", type: "address" },
-        { internalType: "address", name: "spender", type: "address" },
-      ],
-      name: "allowance",
-      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-      stateMutability: "view",
-      type: "function",
-    },
-  ] as const;
-
-  // USDm token address (what the contract pulls from)
-  const USDM_TOKEN =
-    CHAIN.id === celoSepolia.id
-      ? ("0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1" as const)
-      : ("0x765DE816845861e75A25fCA122bb6898B8B1282a" as const);
 
   const invoiceId = BigInt(id as string);
 
@@ -233,9 +159,9 @@ export default function InvoiceDetail() {
     setIsPending(true);
 
     try {
-      const amountInWei = inv.amount; // already in wei from contract
+      const amountInWei = inv.amount;
 
-      // Step 1: Approve contract to spend USDm
+      // Step 1: Approve
       toast.info("Step 1/2: Approving USDm spend...");
       const approveHash = await walletClient.writeContract({
         address: USDM_TOKEN,
@@ -247,11 +173,16 @@ export default function InvoiceDetail() {
         account: address,
       });
 
-      // Wait for approval to confirm
-      toast.info("Waiting for approval confirmation...");
-      await new Promise((resolve) => setTimeout(resolve, 4000));
+      // Wait for approval to actually be mined — not a timeout
+      toast.info("Waiting for approval...");
+      await waitForTransactionReceipt(walletClient, {
+        hash: approveHash,
+        confirmations: 1,
+      });
 
-      // Step 2: Pay the invoice
+      toast.success("Approved! Sending payment...");
+
+      // Step 2: Pay
       toast.info("Step 2/2: Sending payment...");
       const payHash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
@@ -264,8 +195,15 @@ export default function InvoiceDetail() {
       });
 
       setTxHash(payHash);
-      toast.success("Payment submitted! Confirming...");
-      setTimeout(() => refetch(), 5000);
+
+      // Wait for payment to confirm then refetch
+      await waitForTransactionReceipt(walletClient, {
+        hash: payHash,
+        confirmations: 1,
+      });
+
+      toast.success("Payment confirmed! ✓");
+      refetch();
     } catch (err: any) {
       console.error(err);
       const msg = err?.shortMessage ?? err?.message ?? "Payment failed";
