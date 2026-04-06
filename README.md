@@ -25,7 +25,7 @@ Decimoon is a MiniApp for **MiniPay** and **Farcaster** that lets freelancers an
 | -------------- | -------------------------------------- |
 | Framework      | Next.js 16 (App Router)                |
 | Blockchain     | Celo / Celo Sepolia                    |
-| Smart Contract | Solidity (Decimoon1.sol)               |
+| Smart Contract | Solidity (Decimoon.sol)                |
 | Wallet         | MiniPay (injected) + Farcaster MiniApp |
 | Web3           | wagmi v3 + viem v2                     |
 | Styling        | Tailwind CSS v4                        |
@@ -83,11 +83,11 @@ Then in MiniPay:
 
 ## Smart Contract
 
-**Network:** Celo Sepolia (testnet) → Celo Mainnet (production)
+**Network:** Celo Mainnet (production)
 
-**Contract:** `Decimoon1.sol`
+**Contract:** `Decimoon.sol`
 
-**Deployed address (Sepolia):** `0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967`
+**Deployed address (Mainnet):** `0x0f42F76C461f2F403bd797Ca8a023686dc8B4753`
 
 ### Key functions
 

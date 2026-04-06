@@ -7,9 +7,9 @@ import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import React from "react";
 
 export const config = createConfig({
-  chains: [celoSepolia],
+  chains: [celo],
   transports: {
-    [celoSepolia.id]: http(),
+    [celo.id]: http(),
   },
   connectors: [farcasterMiniApp()],
 });

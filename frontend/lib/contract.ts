@@ -3,15 +3,15 @@ import contractAbi from "@/contract/abi.json";
 import { celoSepolia, celo } from "wagmi/chains";
 
 export const CONTRACT_ADDRESS =
-  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
+  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
 
-export const CHAIN = celoSepolia; 
+export const CHAIN = celo; 
 
 export const CONTRACT_ABI = contractAbi.abi;
 
 export const USDM_TOKEN =
-  CHAIN.id === celoSepolia.id
-    ? ("0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const)
+  CHAIN.id === celo.id
+    ? ("0x765DE816845861e75A25fCA122bb6898B8B1282a" as const)
     : ("0x765DE816845861e75A25fCA122bb6898B8B1282a" as const);
 
     

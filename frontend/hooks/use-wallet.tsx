@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useConnect, useConnection, usePublicClient } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { formatEther, getContract } from "viem";
-import { celoSepolia } from "wagmi/chains";
+import { celo, celoSepolia } from "wagmi/chains";
 import { erc20Abi } from "viem";
 import { sdk } from "@farcaster/miniapp-sdk";
 
@@ -13,8 +13,8 @@ const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
 
 const IS_TESTNET = true;
-const USDM_ADDRESS = IS_TESTNET ? USDM_SEPOLIA : USDM_MAINNET;
-const CHAIN_ID = IS_TESTNET ? celoSepolia.id : 42220; // 42220 = celo mainnet
+const USDM_ADDRESS = IS_TESTNET ? USDM_MAINNET : USDM_MAINNET;
+const CHAIN_ID = IS_TESTNET ? celo.id : 42220; // 42220 = celo mainnet
 
 export function useWallet() {
   const [isMiniPay, setIsMiniPay] = useState(false);

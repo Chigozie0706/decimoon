@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title Decimoon
- * @notice On-chain invoicing for MiniPay / Celo — pay and receive in cUSD
- * @dev Works with any ERC-20 stablecoin (cUSD on Celo mainnet: 0x765DE816845861e75A25fCA122bb6898B8B1282a)
+ * @notice On-chain invoicing for MiniPay / Celo — pay and receive in USDm
+ * @dev Works with any ERC-20 stablecoin (USDm on Celo mainnet: 0x765DE816845861e75A25fCA122bb6898B8B1282a)
  */
 contract Decimoon is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;

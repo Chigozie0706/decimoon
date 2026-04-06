@@ -17,19 +17,19 @@ import { toast } from "sonner";
 import { useReadContract, useWaitForTransactionReceipt } from "wagmi";
 import { useConnectorClient } from "wagmi";
 import { walletActions, formatUnits } from "viem";
-import { celoSepolia } from "wagmi/chains";
+import { celo, celoSepolia } from "wagmi/chains";
 import { useWallet } from "@/hooks/use-wallet";
 import { useState, useEffect } from "react";
 import contractAbi from "@/contract/abi.json";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
 const CONTRACT_ADDRESS =
-  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
-const CHAIN = celoSepolia;
+  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
+const CHAIN = celo;
 
 const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
-const USDM_TOKEN = CHAIN.id === celoSepolia.id ? USDM_SEPOLIA : USDM_MAINNET;
+const USDM_TOKEN = CHAIN.id === celo.id ? USDM_MAINNET : USDM_MAINNET;
 const FEE_CURRENCY = USDM_TOKEN;
 
 const USDM_ABI = [

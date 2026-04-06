@@ -17,14 +17,14 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@/hooks/use-wallet";
 import { useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
-import { celoSepolia } from "wagmi/chains";
+import { celo, celoSepolia } from "wagmi/chains";
 import { motion } from "motion/react";
 import contractAbi from "@/contract/abi.json";
 import { Abi } from "viem";
 
 const CONTRACT_ADDRESS =
-  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
-const CHAIN = celoSepolia;
+  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
+const CHAIN = celo;
 
 const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
   0: "unpaid",

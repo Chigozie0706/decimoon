@@ -14,13 +14,13 @@ import {
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { usePublicClient } from "wagmi";
-import { celoSepolia } from "wagmi/chains";
+import { celo, celoSepolia } from "wagmi/chains";
 import { decodeEventLog } from "viem";
 import contractAbi from "@/contract/abi.json";
 
-const CHAIN = celoSepolia;
+const CHAIN = celo;
 const CONTRACT_ADDRESS =
-  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
+  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
 
 export default function InvoiceCreated() {
   const { id } = useParams();

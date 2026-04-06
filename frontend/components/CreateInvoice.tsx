@@ -14,13 +14,13 @@ import contractAbi from "../contract/abi.json";
 
 // ── Contract config ────────────────────────────────────────────────────────────
 const CONTRACT_ADDRESS =
-  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
-const CHAIN = celoSepolia;
+  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
+const CHAIN = celo;
 
 // USDm — 18 decimals, use token address directly (no adapter needed)
 const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
 const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
-const FEE_CURRENCY = CHAIN.id === celoSepolia.id ? USDM_SEPOLIA : USDM_MAINNET;
+const FEE_CURRENCY = CHAIN.id === celo.id ? USDM_MAINNET : USDM_MAINNET;
 
 // Interval enum: 0=weekly, 1=biweekly, 2=monthly
 const INTERVAL_MAP: Record<string, number> = {
