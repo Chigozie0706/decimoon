@@ -11,8 +11,10 @@ export const CONTRACT_ABI = contractAbi.abi;
 
 export const USDM_TOKEN =
   CHAIN.id === celoSepolia.id
-    ? ("0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1" as const)
+    ? ("0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const)
     : ("0x765DE816845861e75A25fCA122bb6898B8B1282a" as const);
+
+    
 
 export const FEE_CURRENCY = USDM_TOKEN;
 

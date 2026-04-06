@@ -19,7 +19,7 @@ const CHAIN = celoSepolia; // switch to celo for mainnet
 
 // USDm — 18 decimals, use token address directly (no adapter needed)
 const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
-const USDM_SEPOLIA = "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1" as const;
+const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 const FEE_CURRENCY = CHAIN.id === celoSepolia.id ? USDM_SEPOLIA : USDM_MAINNET;
 
 // Interval enum: 0=weekly, 1=biweekly, 2=monthly
