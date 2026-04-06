@@ -15,7 +15,7 @@ import contractAbi from "../contract/abi.json";
 // ── Contract config ────────────────────────────────────────────────────────────
 const CONTRACT_ADDRESS =
   "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
-const CHAIN = celoSepolia; // switch to celo for mainnet
+const CHAIN = celoSepolia;
 
 // USDm — 18 decimals, use token address directly (no adapter needed)
 const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
@@ -84,6 +84,18 @@ export default function CreateInvoice() {
       );
       const amountInWei = parseUnits(formData.amount, 18);
 
+      sessionStorage.setItem(
+        "pendingInvoice",
+        JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          amount: formData.amount,
+          dueDate: formData.dueDate,
+          recurring: formData.recurring,
+          interval: formData.interval,
+        }),
+      );
+
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
         abi: contractAbi.abi,
@@ -103,6 +115,7 @@ export default function CreateInvoice() {
       });
 
       setTxHash(hash);
+
       router.push(`/invoice-created/${hash}`);
     } catch (err: any) {
       console.error(err);
@@ -152,7 +165,7 @@ export default function CreateInvoice() {
               onChange={handleChange}
               placeholder="e.g., Logo Design Services"
               required
-              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
+              className="w-full px-4 py-3 bg-white text-gray-900 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
             />
           </div>
 
@@ -168,7 +181,7 @@ export default function CreateInvoice() {
               placeholder="Brief description of services or products"
               required
               rows={3}
-              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none resize-none"
+              className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none resize-none"
             />
           </div>
 
@@ -184,7 +197,7 @@ export default function CreateInvoice() {
               onChange={handleChange}
               placeholder="0x..."
               required
-              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none font-mono text-sm"
+              className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none font-mono text-sm"
             />
           </div>
 
@@ -202,7 +215,7 @@ export default function CreateInvoice() {
               required
               step="0.01"
               min="0"
-              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none text-2xl"
+              className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none text-2xl"
               style={{ fontWeight: 700 }}
             />
             <p className="text-xs text-gray-500 mt-2">
@@ -221,7 +234,7 @@ export default function CreateInvoice() {
                 onChange={handleChange}
                 required
                 min={new Date().toISOString().split("T")[0]}
-                className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
+                className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
               />
               <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
             </div>
@@ -231,7 +244,10 @@ export default function CreateInvoice() {
           <div className="bg-white rounded-xl p-4 border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <label className="text-sm" style={{ fontWeight: 600 }}>
+                <label
+                  className="text-sm text-gray-600"
+                  style={{ fontWeight: 600 }}
+                >
                   Recurring Invoice
                 </label>
                 <p className="text-xs text-gray-500 mt-1">
@@ -263,7 +279,7 @@ export default function CreateInvoice() {
                   name="interval"
                   value={formData.interval}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
+                  className="w-full px-4 py-3 bg-gray-50 text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
                 >
                   <option value="weekly">Weekly</option>
                   <option value="biweekly">Biweekly</option>

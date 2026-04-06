@@ -180,7 +180,7 @@ export default function Profile() {
               About InvoicePay
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Create professional invoices and get paid instantly in cUSD. Every
+              Create professional invoices and get paid instantly in USDm. Every
               payment is recorded on-chain — 100% verifiable and tamper-proof.
             </p>
             <div className="flex items-center gap-2 text-xs text-gray-500">

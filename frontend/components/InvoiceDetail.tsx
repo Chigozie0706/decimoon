@@ -341,7 +341,10 @@ export default function InvoiceDetail() {
             <div className="bg-[#F9FAFB] rounded-xl p-4 mb-6">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-gray-600">Invoice Amount</span>
-                <span className="text-xl" style={{ fontWeight: 700 }}>
+                <span
+                  className="text-xl text-gray-600"
+                  style={{ fontWeight: 700 }}
+                >
                   {amount.toFixed(2)} USDm
                 </span>
               </div>
@@ -369,7 +372,7 @@ export default function InvoiceDetail() {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1">From (Creator)</p>
                   <p
-                    className="text-sm font-mono break-all"
+                    className="text-sm text-gray-600 font-mono break-all"
                     style={{ fontWeight: 600 }}
                   >
                     {inv.creator}
@@ -386,7 +389,7 @@ export default function InvoiceDetail() {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1">To (Client)</p>
                   <p
-                    className="text-sm font-mono break-all"
+                    className="text-sm text-gray-600 font-mono break-all"
                     style={{ fontWeight: 600 }}
                   >
                     {inv.client}
@@ -402,7 +405,10 @@ export default function InvoiceDetail() {
                 <Calendar className="w-5 h-5 text-gray-400 mt-1" />
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1">Due Date</p>
-                  <p className="text-sm" style={{ fontWeight: 600 }}>
+                  <p
+                    className="text-sm text-gray-600"
+                    style={{ fontWeight: 600 }}
+                  >
                     {dueDate}
                   </p>
                 </div>
@@ -415,7 +421,7 @@ export default function InvoiceDetail() {
                   className="text-sm text-[#F59E0B]"
                   style={{ fontWeight: 600 }}
                 >
-                  🔄 Recurring {INTERVAL_MAP[inv.interval]}
+                  Recurring {INTERVAL_MAP[inv.interval]}
                 </p>
               </div>
             )}

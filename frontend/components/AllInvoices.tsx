@@ -9,9 +9,8 @@ import { useReadContract, useReadContracts } from "wagmi";
 import { useWallet } from "@/hooks/use-wallet";
 import { formatUnits } from "viem";
 import { celoSepolia } from "wagmi/chains";
+import { CONTRACT_ADDRESS } from "@/lib/contract";
 
-const CONTRACT_ADDRESS =
-  "0xDfb4FD0a6A526a2d1fE3c0dA77Be29ac20EE7967" as `0x${string}`;
 const CHAIN = celoSepolia;
 
 const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {

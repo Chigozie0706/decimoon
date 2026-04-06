@@ -67,7 +67,7 @@ export default function RecurringInvoices() {
             </div>
             <p className="text-white text-3xl" style={{ fontWeight: 700 }}>
               {totalMonthlyRevenue.toFixed(2)}{" "}
-              <span className="text-xl">cUSD</span>
+              <span className="text-xl">USDm</span>
             </p>
           </div>
         </div>
@@ -139,7 +139,7 @@ export default function RecurringInvoices() {
                         className="text-xl text-[#1B4332]"
                         style={{ fontWeight: 700 }}
                       >
-                        {invoice.amount} cUSD
+                        {invoice.amount} USDm
                       </p>
                     </div>
                     <div>
@@ -170,7 +170,7 @@ export default function RecurringInvoices() {
                         className="text-sm text-[#22C55E]"
                         style={{ fontWeight: 600 }}
                       >
-                        {invoice.totalCollected.toFixed(2)} cUSD
+                        {invoice.totalCollected.toFixed(2)} USDm
                       </p>
                     </div>
                     <div>

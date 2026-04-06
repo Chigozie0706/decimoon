@@ -53,7 +53,7 @@ export function Receipt() {
   };
 
   const handleShare = () => {
-    const message = `Payment received!\n\nInvoice: ${invoice.title}\nAmount: ${invoice.amount} cUSD\nTx: ${txHash.slice(0, 10)}...`;
+    const message = `Payment received!\n\nInvoice: ${invoice.title}\nAmount: ${invoice.amount} USDm\nTx: ${txHash.slice(0, 10)}...`;
     navigator.clipboard.writeText(message);
     alert("Receipt details copied to clipboard!");
   };
@@ -87,7 +87,7 @@ export function Receipt() {
             transition={{ delay: 0.5 }}
             className="text-white/90 text-lg"
           >
-            {invoice.amount} cUSD received
+            {invoice.amount} USDm received
           </motion.p>
         </div>
 
@@ -151,7 +151,7 @@ export function Receipt() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-gray-600">Amount</span>
                   <span className="text-lg" style={{ fontWeight: 700 }}>
-                    {invoice.amount} cUSD
+                    {invoice.amount} USDm
                   </span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
@@ -159,7 +159,7 @@ export function Receipt() {
                     Platform Fee (2%)
                   </span>
                   <span className="text-sm text-gray-600">
-                    -{platformFee} cUSD
+                    -{platformFee} USDm
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-gray-100">
@@ -170,7 +170,7 @@ export function Receipt() {
                     className="text-2xl text-[#22C55E]"
                     style={{ fontWeight: 700 }}
                   >
-                    {(invoice.amount * 0.98).toFixed(2)} cUSD
+                    {(invoice.amount * 0.98).toFixed(2)} USDm
                   </span>
                 </div>
               </div>

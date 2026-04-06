@@ -23,7 +23,7 @@ export default function Onboarding() {
       description: "Send to clients on WhatsApp, X, or scan in person",
     },
     {
-      title: "Get paid in cUSD. No fake alerts.",
+      title: "Get paid in USDm. No fake alerts.",
       description:
         "Every payment is recorded on-chain — 100% verifiable and tamper-proof",
     },

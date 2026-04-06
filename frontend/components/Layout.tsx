@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { useRouter, usePathname } from "next/navigation"; // ← swap
+import { useRouter, usePathname } from "next/navigation";
 import { Home, FileText, Receipt, User } from "lucide-react";
 
 interface LayoutProps {
@@ -10,8 +10,8 @@ interface LayoutProps {
 }
 
 export function Layout({ children, showNav = true }: LayoutProps) {
-  const router = useRouter(); // ← swap
-  const pathname = usePathname(); // ← swap
+  const router = useRouter();
+  const pathname = usePathname();
 
   const navItems = [
     { icon: Home, label: "Home", path: "/home" },
@@ -30,11 +30,11 @@ export function Layout({ children, showNav = true }: LayoutProps) {
             <div className="flex justify-around items-center">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.path; // ← swap
+                const isActive = pathname === item.path;
                 return (
                   <button
                     key={item.path}
-                    onClick={() => router.push(item.path)} // ← swap
+                    onClick={() => router.push(item.path)}
                     className="flex flex-col items-center gap-1 py-2 px-4 min-w-[60px]"
                   >
                     <Icon

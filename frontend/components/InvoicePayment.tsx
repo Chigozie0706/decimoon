@@ -134,7 +134,7 @@ export function InvoicePayment() {
               >
                 {invoice.amount}
               </p>
-              <p className="text-xl text-gray-600">cUSD</p>
+              <p className="text-xl text-gray-600">USDm</p>
             </div>
 
             {invoice.recurring && (
@@ -143,7 +143,7 @@ export function InvoicePayment() {
                   className="text-sm text-[#F59E0B]"
                   style={{ fontWeight: 600 }}
                 >
-                  🔄 This is a recurring {invoice.interval} invoice
+                  This is a recurring {invoice.interval} invoice
                 </p>
               </div>
             )}
