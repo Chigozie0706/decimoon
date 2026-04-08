@@ -173,13 +173,13 @@ export default function RecurringInvoices() {
                         {invoice.totalCollected.toFixed(2)} USDm
                       </p>
                     </div>
-                    <div>
+                    {/* <div>
                       {invoice.active ? (
                         <StatusBadge status="active" />
                       ) : (
                         <StatusBadge status="paused" />
                       )}
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* View Button */}
