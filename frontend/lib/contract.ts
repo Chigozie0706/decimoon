@@ -1,21 +1,20 @@
-// lib/contract.ts
+import { celo, celoSepolia } from "wagmi/chains";
+import { Abi } from "viem";
 import contractAbi from "@/contract/abi.json";
-import { celoSepolia, celo } from "wagmi/chains";
+
+const IS_TESTNET = false; // ← flip to true for Sepolia
+
+export const CHAIN = IS_TESTNET ? celoSepolia : celo;
+export const ABI = contractAbi.abi as Abi;
 
 export const CONTRACT_ADDRESS =
   "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
 
-export const CHAIN = celo; 
-
-export const CONTRACT_ABI = contractAbi.abi;
-
-export const USDM_TOKEN =
-  CHAIN.id === celo.id
-    ? ("0x765DE816845861e75A25fCA122bb6898B8B1282a" as const)
-    : ("0x765DE816845861e75A25fCA122bb6898B8B1282a" as const);
-
-    
-
+export const USDM_SEPOLIA =
+  "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
+export const USDM_MAINNET =
+  "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
+export const USDM_TOKEN = IS_TESTNET ? USDM_SEPOLIA : USDM_MAINNET;
 export const FEE_CURRENCY = USDM_TOKEN;
 
 export const USDM_ABI = [
@@ -29,27 +28,27 @@ export const USDM_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-  {
-    inputs: [
-      { internalType: "address", name: "owner", type: "address" },
-      { internalType: "address", name: "spender", type: "address" },
-    ],
-    name: "allowance",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
 ] as const;
 
-export const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
+
+// enum Status { Unpaid=0, Paid=1, Cancelled=2, Overdue=3 }
+export const STATUS_MAP: Record<number, "unpaid" | "paid" | "cancelled" | "overdue"> = {
   0: "unpaid",
   1: "paid",
-  2: "overdue",
+  2: "cancelled",
   3: "overdue",
 };
 
-export const INTERVAL_MAP: Record<number, string> = {
-  0: "weekly",
-  1: "biweekly",
-  2: "monthly",
+// enum Interval { None=0, Weekly=1, Biweekly=2, Monthly=3 }
+export const INTERVAL_MAP: Record<string, number> = {
+  weekly: 1,
+  biweekly: 2,
+  monthly: 3,
+};
+
+export const INTERVAL_DISPLAY: Record<number, string> = {
+  0: "None",
+  1: "Weekly",
+  2: "Biweekly",
+  3: "Monthly",
 };

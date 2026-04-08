@@ -40,7 +40,7 @@ interface Invoice {
   client: string;
   creator: string;
   amount: number;
-  status: "paid" | "unpaid" | "overdue";
+  status: "paid" | "unpaid" | "overdue" | "cancelled"; // ← add cancelled
   date: string;
   dueDate: string;
 }
@@ -109,11 +109,16 @@ export default function Home() {
   const toPayInvoices = receivedInvoices.filter(
     (i) => i.status === "unpaid" || i.status === "overdue",
   );
+
   const recentSent = sentInvoices.slice(0, 5);
 
   const unpaidCount = sentInvoices.filter((i) => i.status === "unpaid").length;
   const paidCount = sentInvoices.filter((i) => i.status === "paid").length;
   const overdueCount = sentInvoices.filter(
+    (i) => i.status === "overdue",
+  ).length;
+
+  const overdueCoun1t = sentInvoices.filter(
     (i) => i.status === "overdue",
   ).length;
   const totalOwed = sentInvoices

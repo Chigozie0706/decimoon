@@ -1,23 +1,35 @@
-"use client";
-
-interface StatusBadgeProps {
-  status: "paid" | "unpaid" | "overdue" | "active" | "paused";
-}
-
-export function StatusBadge({ status }: StatusBadgeProps) {
-  const styles = {
-    paid: "bg-[#22C55E]/10 text-[#22C55E]",
-    unpaid: "bg-[#F59E0B]/10 text-[#F59E0B]",
-    overdue: "bg-[#EF4444]/10 text-[#EF4444]",
-    active: "bg-[#22C55E]/10 text-[#22C55E]",
-    paused: "bg-gray-200 text-gray-600",
+export function StatusBadge({
+  status,
+}: {
+  status: "paid" | "unpaid" | "overdue" | "cancelled";
+}) {
+  const config = {
+    paid: {
+      label: "Paid",
+      className: "bg-green-100 text-green-700 border border-green-200",
+    },
+    unpaid: {
+      label: "Unpaid",
+      className: "bg-yellow-100 text-yellow-700 border border-yellow-200",
+    },
+    overdue: {
+      label: "Overdue",
+      className: "bg-red-100 text-red-700 border border-red-200",
+    },
+    cancelled: {
+      label: "Cancelled",
+      className: "bg-gray-100 text-gray-500 border border-gray-200",
+    },
   };
+
+  const { label, className } = config[status] ?? config.unpaid;
 
   return (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status]}`}
+      className={`text-xs px-2.5 py-1 rounded-full ${className}`}
+      style={{ fontWeight: 600 }}
     >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {label}
     </span>
   );
 }

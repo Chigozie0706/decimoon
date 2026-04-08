@@ -8,69 +8,14 @@ import { Search, FileText } from "lucide-react";
 import { useReadContract, useReadContracts } from "wagmi";
 import { useWallet } from "@/hooks/use-wallet";
 import { formatUnits } from "viem";
-import { celoSepolia } from "wagmi/chains";
-import { CONTRACT_ADDRESS } from "@/lib/contract";
-
-const CHAIN = celoSepolia;
-
-const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
-  0: "unpaid",
-  1: "paid",
-  2: "overdue",
-  3: "overdue",
-};
-
-const INTERVAL_MAP: Record<number, string> = {
-  0: "weekly",
-  1: "biweekly",
-  2: "monthly",
-};
-
-const CONTRACT_ABI = [
-  {
-    inputs: [{ internalType: "address", name: "creator", type: "address" }],
-    name: "getCreatorInvoices",
-    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "client", type: "address" }],
-    name: "getClientInvoices",
-    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
-    name: "getInvoice",
-    outputs: [
-      {
-        components: [
-          { internalType: "uint256", name: "id", type: "uint256" },
-          { internalType: "address", name: "creator", type: "address" },
-          { internalType: "address", name: "client", type: "address" },
-          { internalType: "string", name: "title", type: "string" },
-          { internalType: "string", name: "description", type: "string" },
-          { internalType: "uint256", name: "amount", type: "uint256" },
-          { internalType: "uint256", name: "dueDate", type: "uint256" },
-          { internalType: "uint8", name: "status", type: "uint8" },
-          { internalType: "bool", name: "isRecurring", type: "bool" },
-          { internalType: "uint8", name: "interval", type: "uint8" },
-          { internalType: "uint256", name: "nextDueDate", type: "uint256" },
-          { internalType: "uint256", name: "totalCollected", type: "uint256" },
-          { internalType: "uint256", name: "createdAt", type: "uint256" },
-          { internalType: "uint256", name: "paidAt", type: "uint256" },
-        ],
-        internalType: "struct Decimoon1.Invoice",
-        name: "",
-        type: "tuple",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
+import { Abi } from "viem";
+import {
+  CONTRACT_ADDRESS,
+  ABI,
+  CHAIN,
+  STATUS_MAP,
+  INTERVAL_DISPLAY,
+} from "@/lib/contract";
 
 interface Invoice {
   id: string;
@@ -78,18 +23,21 @@ interface Invoice {
   client: string;
   creator: string;
   amount: number;
-  status: "paid" | "unpaid" | "overdue";
+  status: "paid" | "unpaid" | "overdue" | "cancelled";
   dueDate: string;
   date: string;
   recurring: boolean;
   interval?: string;
 }
 
-function useInvoices(ids: bigint[]) {
+function useInvoices(ids: bigint[]): {
+  invoices: Invoice[];
+  isLoading: boolean;
+} {
   const { data: invoiceResults, isLoading } = useReadContracts({
     contracts: ids.map((id) => ({
       address: CONTRACT_ADDRESS,
-      abi: CONTRACT_ABI,
+      abi: ABI,
       functionName: "getInvoice" as const,
       args: [id] as const,
       chainId: CHAIN.id,
@@ -122,7 +70,7 @@ function useInvoices(ids: bigint[]) {
         dueDate: new Date(Number(inv.dueDate) * 1000).toLocaleDateString(),
         date: new Date(Number(inv.createdAt) * 1000).toLocaleDateString(),
         recurring: inv.isRecurring,
-        interval: INTERVAL_MAP[inv.interval],
+        interval: INTERVAL_DISPLAY[inv.interval],
       };
     })
     .reverse();
@@ -136,23 +84,21 @@ export default function AllInvoices() {
   const [tab, setTab] = useState<"sent" | "received">("sent");
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<
-    "all" | "paid" | "unpaid" | "overdue" | "recurring"
+    "all" | "paid" | "unpaid" | "overdue" | "cancelled" | "recurring"
   >("all");
 
-  // Sent invoices (creator)
   const { data: creatorIds, isLoading: isLoadingCreatorIds } = useReadContract({
     address: CONTRACT_ADDRESS,
-    abi: CONTRACT_ABI,
+    abi: ABI,
     functionName: "getCreatorInvoices",
     args: address ? [address] : undefined,
     query: { enabled: !!address },
     chainId: CHAIN.id,
   });
 
-  // Received invoices (client)
   const { data: clientIds, isLoading: isLoadingClientIds } = useReadContract({
     address: CONTRACT_ADDRESS,
-    abi: CONTRACT_ABI,
+    abi: ABI,
     functionName: "getClientInvoices",
     args: address ? [address] : undefined,
     query: { enabled: !!address },
@@ -175,12 +121,12 @@ export default function AllInvoices() {
 
   const activeInvoices = tab === "sent" ? sentInvoices : receivedInvoices;
 
-  // Filters only apply to sent tab — received always shows unpaid/overdue first
   const sentFilters = [
     "all",
     "paid",
     "unpaid",
     "overdue",
+    "cancelled",
     "recurring",
   ] as const;
 
@@ -200,19 +146,21 @@ export default function AllInvoices() {
     return true;
   });
 
-  // Sort received: unpaid/overdue first
   const sortedInvoices =
     tab === "received"
       ? [...filteredInvoices].sort((a, b) => {
-          const order = { unpaid: 0, overdue: 1, paid: 2 };
-          return order[a.status] - order[b.status];
+          const order = { overdue: 0, unpaid: 1, paid: 2, cancelled: 3 };
+          return (order[a.status] ?? 4) - (order[b.status] ?? 4);
         })
       : filteredInvoices;
+
+  const unpaidReceivedCount = receivedInvoices.filter(
+    (i) => i.status === "unpaid" || i.status === "overdue",
+  ).length;
 
   return (
     <Layout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/* Header */}
         <div className="bg-[#1B4332] px-6 py-6">
           <h1 className="text-white text-2xl mb-4" style={{ fontWeight: 700 }}>
             Invoices
@@ -229,9 +177,9 @@ export default function AllInvoices() {
           </div>
         </div>
 
-        {/* Sent / Received tabs */}
+        {/* Tabs */}
         <div className="bg-white px-6 pt-4 border-b border-gray-200">
-          <div className="flex gap-1 mb-4">
+          <div className="flex gap-2 mb-4">
             <button
               onClick={() => {
                 setTab("sent");
@@ -244,10 +192,10 @@ export default function AllInvoices() {
               }`}
               style={{ fontWeight: 600 }}
             >
-              Sent
+              Sent{" "}
               {sentInvoices.length > 0 && (
-                <span className="ml-2 bg-white/20 text-xs px-1.5 py-0.5 rounded-full">
-                  {sentInvoices.length}
+                <span className="ml-1 text-xs opacity-70">
+                  ({sentInvoices.length})
                 </span>
               )}
             </button>
@@ -263,30 +211,23 @@ export default function AllInvoices() {
               }`}
               style={{ fontWeight: 600 }}
             >
-              Received
-              {/* Badge for unpaid received invoices */}
-              {receivedInvoices.filter(
-                (i) => i.status === "unpaid" || i.status === "overdue",
-              ).length > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                  {
-                    receivedInvoices.filter(
-                      (i) => i.status === "unpaid" || i.status === "overdue",
-                    ).length
-                  }
+              Received{" "}
+              {unpaidReceivedCount > 0 && (
+                <span className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {unpaidReceivedCount}
                 </span>
               )}
             </button>
           </div>
 
-          {/* Filter pills — only show on Sent tab */}
+          {/* Filters — sent tab only */}
           {tab === "sent" && (
-            <div className="flex gap-2 overflow-x-auto pb-4 min-w-max">
+            <div className="flex gap-2 overflow-x-auto pb-4">
               {sentFilters.map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-4 py-2 rounded-full text-sm transition-colors capitalize ${
+                  className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors capitalize ${
                     filter === f
                       ? "bg-[#1B4332] text-white"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -300,7 +241,6 @@ export default function AllInvoices() {
           )}
         </div>
 
-        {/* Invoice List */}
         <div className="p-6">
           {/* Loading */}
           {isLoading && (
@@ -318,7 +258,7 @@ export default function AllInvoices() {
                 Wallet not connected
               </p>
               <p className="text-sm mt-1">
-                Open this app in MiniPay or Farcaster to view your invoices
+                Open this app in MiniPay or Farcaster
               </p>
             </div>
           )}
@@ -341,7 +281,7 @@ export default function AllInvoices() {
               {tab === "sent" && (
                 <button
                   onClick={() => router.push("/create-invoice")}
-                  className="bg-[#1B4332] text-white px-6 py-3 rounded-xl hover:opacity-90 transition-opacity"
+                  className="bg-[#1B4332] text-white px-6 py-3 rounded-xl hover:opacity-90"
                   style={{ fontWeight: 600 }}
                 >
                   Create Invoice
@@ -356,12 +296,15 @@ export default function AllInvoices() {
               {sortedInvoices.map((invoice) => (
                 <button
                   key={invoice.id}
-                  onClick={() => router.push(`/invoice-details/${invoice.id}`)}
+                  onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
                   className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow text-left"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h4 className="text-lg mb-1" style={{ fontWeight: 700 }}>
+                    <div className="flex-1 min-w-0">
+                      <h4
+                        className="text-lg mb-1 truncate"
+                        style={{ fontWeight: 700 }}
+                      >
                         {invoice.title}
                       </h4>
                       <p className="text-sm text-gray-600">
@@ -391,12 +334,13 @@ export default function AllInvoices() {
                         {invoice.amount.toFixed(2)}{" "}
                         <span className="text-sm">USDm</span>
                       </p>
-                      {/* Pay button inline for received unpaid invoices */}
-                      {tab === "received" && invoice.status === "unpaid" && (
-                        <span className="text-xs text-white bg-[#1B4332] px-2 py-0.5 rounded-full mt-1 inline-block">
-                          Tap to pay
-                        </span>
-                      )}
+                      {tab === "received" &&
+                        (invoice.status === "unpaid" ||
+                          invoice.status === "overdue") && (
+                          <span className="text-xs text-white bg-[#1B4332] px-2 py-0.5 rounded-full">
+                            Tap to pay
+                          </span>
+                        )}
                     </div>
                   </div>
                 </button>

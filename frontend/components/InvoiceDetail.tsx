@@ -17,48 +17,19 @@ import { toast } from "sonner";
 import { useReadContract, useWaitForTransactionReceipt } from "wagmi";
 import { useConnectorClient } from "wagmi";
 import { walletActions, formatUnits } from "viem";
-import { celo, celoSepolia } from "wagmi/chains";
 import { useWallet } from "@/hooks/use-wallet";
 import { useState, useEffect } from "react";
-import contractAbi from "@/contract/abi.json";
+import {
+  CONTRACT_ADDRESS,
+  ABI,
+  CHAIN,
+  FEE_CURRENCY,
+  USDM_TOKEN,
+  USDM_ABI,
+  STATUS_MAP,
+  INTERVAL_DISPLAY,
+} from "@/lib/contract";
 
-// ── Config ─────────────────────────────────────────────────────────────────────
-const CONTRACT_ADDRESS =
-  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
-const CHAIN = celo;
-
-const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
-const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
-const USDM_TOKEN = CHAIN.id === celo.id ? USDM_MAINNET : USDM_MAINNET;
-const FEE_CURRENCY = USDM_TOKEN;
-
-const USDM_ABI = [
-  {
-    inputs: [
-      { internalType: "address", name: "spender", type: "address" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
-    ],
-    name: "approve",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
-const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
-  0: "unpaid",
-  1: "paid",
-  2: "overdue",
-  3: "overdue",
-};
-
-const INTERVAL_MAP: Record<number, string> = {
-  0: "weekly",
-  1: "biweekly",
-  2: "monthly",
-};
-
-// ── Component ──────────────────────────────────────────────────────────────────
 export default function InvoiceDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -73,24 +44,20 @@ export default function InvoiceDetail() {
 
   const invoiceId = BigInt(id as string);
 
-  // ── Contract reads ───────────────────────────────────────────────────────────
   const {
     data: rawInvoice,
     isLoading,
     refetch,
   } = useReadContract({
     address: CONTRACT_ADDRESS,
-    abi: contractAbi.abi,
+    abi: ABI,
     functionName: "getInvoice",
     args: [invoiceId],
     chainId: CHAIN.id,
   });
 
-  // ── Wallet client ────────────────────────────────────────────────────────────
   const { data: connectorClient } = useConnectorClient({ chainId: CHAIN.id });
   const walletClient = connectorClient?.extend(walletActions);
-
-  // ── Transaction watchers ─────────────────────────────────────────────────────
 
   // Watch approval tx
   const { isSuccess: isApproved } = useWaitForTransactionReceipt({
@@ -99,17 +66,11 @@ export default function InvoiceDetail() {
 
   // Watch payment tx
   const { isLoading: isConfirmingPay, isSuccess: isPaid } =
-    useWaitForTransactionReceipt({
-      hash: payHash,
-    });
+    useWaitForTransactionReceipt({ hash: payHash });
 
   // Watch cancel tx
   const { isLoading: isConfirmingCancel, isSuccess: isCancelled } =
-    useWaitForTransactionReceipt({
-      hash: cancelHash,
-    });
-
-  // ── Effects ──────────────────────────────────────────────────────────────────
+    useWaitForTransactionReceipt({ hash: cancelHash });
 
   // When approval confirms → send payment
   useEffect(() => {
@@ -122,7 +83,7 @@ export default function InvoiceDetail() {
     walletClient
       .writeContract({
         address: CONTRACT_ADDRESS,
-        abi: contractAbi.abi,
+        abi: ABI,
         functionName: "payInvoice",
         args: [invoiceId],
         feeCurrency: FEE_CURRENCY,
@@ -140,9 +101,9 @@ export default function InvoiceDetail() {
         setStep("idle");
         setIsPending(false);
       });
-  }, [isApproved]);
+  }, [isApproved, walletClient, address, step]);
 
-  // When payment confirms → done
+  // When payment confirms
   useEffect(() => {
     if (!isPaid) return;
     toast.success("Payment confirmed! ✓");
@@ -151,14 +112,14 @@ export default function InvoiceDetail() {
     refetch();
   }, [isPaid]);
 
-  // When cancel confirms → redirect
+  // When cancel confirms
   useEffect(() => {
     if (!isCancelled) return;
     toast.success("Invoice cancelled");
-    router.push("/invoices");
+    setIsPending(false);
+    refetch();
   }, [isCancelled]);
 
-  // ── Loading & not found states ───────────────────────────────────────────────
   if (isLoading) {
     return (
       <Layout>
@@ -192,7 +153,6 @@ export default function InvoiceDetail() {
     );
   }
 
-  // ── Map contract data ────────────────────────────────────────────────────────
   const inv = rawInvoice as {
     id: bigint;
     creator: `0x${string}`;
@@ -219,7 +179,6 @@ export default function InvoiceDetail() {
   const isClient = address?.toLowerCase() === inv.client.toLowerCase();
   const isSubmitting = isPending || isConfirmingPay || isConfirmingCancel;
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleShare = () => {
     if (typeof window === "undefined") return;
     const link = `${window.location.origin}/invoice-detail/${inv.id.toString()}`;
@@ -232,7 +191,6 @@ export default function InvoiceDetail() {
       toast.error("Wallet not ready");
       return;
     }
-
     setError(null);
     setIsPending(true);
     setStep("approving");
@@ -264,6 +222,10 @@ export default function InvoiceDetail() {
       toast.error("Wallet not ready");
       return;
     }
+    if (!isCreator) {
+      toast.error("Only the invoice creator can cancel");
+      return;
+    }
     if (!confirm("Are you sure you want to cancel this invoice?")) return;
 
     setError(null);
@@ -271,7 +233,7 @@ export default function InvoiceDetail() {
     try {
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
-        abi: contractAbi.abi,
+        abi: ABI,
         functionName: "cancelInvoice",
         args: [invoiceId],
         feeCurrency: FEE_CURRENCY,
@@ -288,11 +250,9 @@ export default function InvoiceDetail() {
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Layout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/* Header */}
         <div className="bg-[#1B4332] px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button onClick={() => router.back()} className="text-white">
@@ -306,7 +266,6 @@ export default function InvoiceDetail() {
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Main Info Card */}
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <div className="flex items-start justify-between mb-6">
               <div>
@@ -330,7 +289,7 @@ export default function InvoiceDetail() {
             </div>
 
             <h2
-              className="text-2xl text-gray-600 mb-2"
+              className="text-2xl text-gray-800 mb-2"
               style={{ fontWeight: 700 }}
             >
               {inv.title}
@@ -341,10 +300,7 @@ export default function InvoiceDetail() {
             <div className="bg-[#F9FAFB] rounded-xl p-4 mb-6">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-gray-600">Invoice Amount</span>
-                <span
-                  className="text-xl text-gray-600"
-                  style={{ fontWeight: 700 }}
-                >
+                <span className="text-xl" style={{ fontWeight: 700 }}>
                   {amount.toFixed(2)} USDm
                 </span>
               </div>
@@ -372,7 +328,7 @@ export default function InvoiceDetail() {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1">From (Creator)</p>
                   <p
-                    className="text-sm text-gray-600 font-mono break-all"
+                    className="text-sm font-mono break-all"
                     style={{ fontWeight: 600 }}
                   >
                     {inv.creator}
@@ -389,7 +345,7 @@ export default function InvoiceDetail() {
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1">To (Client)</p>
                   <p
-                    className="text-sm text-gray-600 font-mono break-all"
+                    className="text-sm font-mono break-all"
                     style={{ fontWeight: 600 }}
                   >
                     {inv.client}
@@ -405,10 +361,7 @@ export default function InvoiceDetail() {
                 <Calendar className="w-5 h-5 text-gray-400 mt-1" />
                 <div className="flex-1">
                   <p className="text-xs text-gray-500 mb-1">Due Date</p>
-                  <p
-                    className="text-sm text-gray-600"
-                    style={{ fontWeight: 600 }}
-                  >
+                  <p className="text-sm" style={{ fontWeight: 600 }}>
                     {dueDate}
                   </p>
                 </div>
@@ -421,7 +374,7 @@ export default function InvoiceDetail() {
                   className="text-sm text-[#F59E0B]"
                   style={{ fontWeight: 600 }}
                 >
-                  Recurring {INTERVAL_MAP[inv.interval]}
+                  🔄 Recurring {INTERVAL_DISPLAY[inv.interval]}
                 </p>
               </div>
             )}
@@ -434,11 +387,11 @@ export default function InvoiceDetail() {
             </div>
           )}
 
-          {/* Step progress banner */}
+          {/* Step banners */}
           {step === "approving" && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-center gap-2 text-yellow-700 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Step 1/2: Waiting for approval confirmation...
+              Step 1/2: Waiting for approval...
             </div>
           )}
           {step === "paying" && (
@@ -479,14 +432,14 @@ export default function InvoiceDetail() {
                   </button>
                 )}
 
-                {status !== "paid" && (
+                {(status === "unpaid" || status === "overdue") && (
                   <button
                     onClick={handleCancel}
                     disabled={isSubmitting}
                     className="w-full bg-white border-2 border-[#EF4444] text-[#EF4444] py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-red-50 transition-colors disabled:opacity-50"
                     style={{ fontWeight: 600 }}
                   >
-                    {isSubmitting ? (
+                    {isConfirmingCancel ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
                       <XCircle className="w-5 h-5" />
@@ -494,13 +447,20 @@ export default function InvoiceDetail() {
                     {isConfirmingCancel ? "Cancelling..." : "Cancel Invoice"}
                   </button>
                 )}
+
+                {status === "cancelled" && (
+                  <div className="w-full bg-gray-100 border border-gray-200 text-gray-500 py-4 rounded-xl flex items-center justify-center gap-2">
+                    <XCircle className="w-5 h-5" />
+                    <span style={{ fontWeight: 600 }}>Invoice Cancelled</span>
+                  </div>
+                )}
               </>
             )}
 
             {/* CLIENT */}
             {isClient && (
               <>
-                {status === "unpaid" || status === "overdue" ? (
+                {(status === "unpaid" || status === "overdue") && (
                   <button
                     onClick={handlePay}
                     disabled={isSubmitting}
@@ -518,10 +478,19 @@ export default function InvoiceDetail() {
                         ? "Step 2/2: Confirming..."
                         : `Pay ${amount.toFixed(2)} USDm`}
                   </button>
-                ) : (
+                )}
+
+                {status === "paid" && (
                   <div className="w-full bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#22C55E] py-4 rounded-xl flex items-center justify-center gap-2">
                     <Receipt className="w-5 h-5" />
                     <span style={{ fontWeight: 600 }}>Paid ✓</span>
+                  </div>
+                )}
+
+                {status === "cancelled" && (
+                  <div className="w-full bg-gray-100 border border-gray-200 text-gray-500 py-4 rounded-xl flex items-center justify-center gap-2">
+                    <XCircle className="w-5 h-5" />
+                    <span style={{ fontWeight: 600 }}>Invoice Cancelled</span>
                   </div>
                 )}
               </>

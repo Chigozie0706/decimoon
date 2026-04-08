@@ -22,11 +22,11 @@ const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
 const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 const FEE_CURRENCY = CHAIN.id === celo.id ? USDM_MAINNET : USDM_MAINNET;
 
-// Interval enum: 0=weekly, 1=biweekly, 2=monthly
+// Interval enum: 1=weekly, 2=biweekly, 3=monthly
 const INTERVAL_MAP: Record<string, number> = {
-  weekly: 0,
-  biweekly: 1,
-  monthly: 2,
+  weekly: 1,
+  biweekly: 2,
+  monthly: 3,
 };
 
 // ── Component ──────────────────────────────────────────────────────────────────
