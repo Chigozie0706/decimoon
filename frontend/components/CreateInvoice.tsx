@@ -12,7 +12,6 @@ import { celo, celoSepolia } from "wagmi/chains";
 import { useWallet } from "@/hooks/use-wallet";
 import contractAbi from "../contract/abi.json";
 
-// ── Contract config ────────────────────────────────────────────────────────────
 const CONTRACT_ADDRESS =
   "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
 const CHAIN = celo;
