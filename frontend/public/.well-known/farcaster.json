@@ -1,0 +1,16 @@
+{
+    "accountAssociation": {
+        "header": "",
+        "payload": "",
+        "signature": ""
+    },
+    "frame": {
+        "version": "1",
+        "name": "Decimoon",
+        "iconUrl": "https://decimoon.vercel.app/images/decimoon_splash_500x500.png",
+        "homeUrl": "https://decimoon.vercel.app",
+        "imageUrl": "https://decimoon.vercel.app/images/decimoon_feed_1200x630.png",
+        "splashImageUrl": "https://decimoon.vercel.app/images/decimoon_splash_500x500.png",
+        "splashBackgroundColor": "#1a3a2a"
+    }
+}
