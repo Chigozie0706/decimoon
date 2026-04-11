@@ -50,7 +50,7 @@ export default function Onboarding() {
             <Wallet className="w-10 h-10 text-[#1B4332]" />
           </motion.div>
           <h1 className="text-3xl mb-2" style={{ fontWeight: 700 }}>
-            InvoicePay
+            Decimoon
           </h1>
           <p className="text-[#F4C430] text-sm">
             Create invoices. Get paid instantly. On-chain.

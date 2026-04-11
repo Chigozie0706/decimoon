@@ -88,7 +88,7 @@ export function InvoicePayment() {
           <h1 className="text-white text-xl" style={{ fontWeight: 700 }}>
             Payment Request
           </h1>
-          <p className="text-white/80 text-sm mt-2">via InvoicePay</p>
+          <p className="text-white/80 text-sm mt-2">via Decimoon</p>
         </div>
 
         {/* Invoice Card */}

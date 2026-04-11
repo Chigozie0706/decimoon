@@ -177,7 +177,7 @@ export default function Profile() {
           {/* About */}
           <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
             <h3 className="text-sm mb-3" style={{ fontWeight: 700 }}>
-              About InvoicePay
+              About Decimmon
             </h3>
             <p className="text-sm text-gray-600 mb-4">
               Create professional invoices and get paid instantly in USDm. Every
