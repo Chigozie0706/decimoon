@@ -21,6 +21,10 @@ const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
 const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 const FEE_CURRENCY = CHAIN.id === celo.id ? USDM_MAINNET : USDM_MAINNET;
 
+const [isResolving, setIsResolving] = useState(false);
+const [resolvedAddress, setResolvedAddress] = useState<string>("");
+const [resolveHint, setResolveHint] = useState<string>("");
+
 // Interval enum: 1=weekly, 2=biweekly, 3=monthly
 const INTERVAL_MAP: Record<string, number> = {
   weekly: 1,
@@ -55,6 +59,44 @@ export default function CreateInvoice() {
     hash: txHash,
   });
   const isSubmitting = isPending || isConfirming;
+
+  const resolveRecipient = async (input: string) => {
+    const trimmed = input.trim();
+
+    // Raw address — use directly
+    if (trimmed.startsWith("0x") && trimmed.length === 42) {
+      setResolvedAddress(trimmed);
+      setResolveHint("");
+      return;
+    }
+
+    // Phone or Farcaster — hit the API
+    if (trimmed.startsWith("@") || /^\+?[\d]/.test(trimmed)) {
+      setIsResolving(true);
+      setResolveHint("");
+      try {
+        const res = await fetch("/api/resolve-recipient", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: trimmed }),
+        });
+        const data = await res.json();
+        if (data.address) {
+          setResolvedAddress(data.address);
+          setResolveHint(
+            `Resolved: ${data.address.slice(0, 6)}...${data.address.slice(-4)}`,
+          );
+        } else {
+          setResolvedAddress("");
+          setResolveHint(data.error ?? "Could not resolve");
+        }
+      } catch {
+        setResolveHint("Resolution failed");
+      } finally {
+        setIsResolving(false);
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +142,7 @@ export default function CreateInvoice() {
         abi: contractAbi.abi,
         functionName: "createInvoice",
         args: [
+          (resolvedAddress || formData.clientWallet) as `0x${string}`,
           formData.clientWallet as `0x${string}`,
           formData.title,
           formData.description,
@@ -198,6 +241,32 @@ export default function CreateInvoice() {
               required
               className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none font-mono text-sm"
             />
+          </div>
+
+          <div>
+            <label className="text-sm text-gray-600 mb-2 block">Client</label>
+            <input
+              type="text"
+              name="clientWallet"
+              value={formData.clientWallet}
+              onChange={(e) => {
+                handleChange(e);
+                resolveRecipient(e.target.value);
+              }}
+              placeholder="@farcaster, +2348012345678, or 0x..."
+              required
+              className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none font-mono text-sm"
+            />
+            {isResolving && (
+              <p className="text-xs text-gray-400 mt-1">Resolving...</p>
+            )}
+            {resolveHint && (
+              <p
+                className={`text-xs mt-1 ${resolvedAddress ? "text-[#1B4332]" : "text-red-500"}`}
+              >
+                {resolveHint}
+              </p>
+            )}
           </div>
 
           {/* Amount */}
