@@ -21,10 +21,6 @@ const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
 const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 const FEE_CURRENCY = CHAIN.id === celo.id ? USDM_MAINNET : USDM_MAINNET;
 
-const [isResolving, setIsResolving] = useState(false);
-const [resolvedAddress, setResolvedAddress] = useState<string>("");
-const [resolveHint, setResolveHint] = useState<string>("");
-
 // Interval enum: 1=weekly, 2=biweekly, 3=monthly
 const INTERVAL_MAP: Record<string, number> = {
   weekly: 1,
@@ -50,6 +46,10 @@ export default function CreateInvoice() {
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolvedAddress, setResolvedAddress] = useState<string>("");
+  const [resolveHint, setResolveHint] = useState<string>("");
 
   // Get the raw connector client and extend it with wallet actions
   const { data: connectorClient } = useConnectorClient({ chainId: CHAIN.id });
