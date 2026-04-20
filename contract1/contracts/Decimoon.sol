@@ -34,3 +34,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *      existing state variables between upgrades.
  *      __gap reserves slots for future V1 storage additions.
  */
+
+
+contract Decimoon is
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    Ownable2StepUpgradeable,
+    UUPSUpgradeable
+{
+    using SafeERC20 for IERC20;
