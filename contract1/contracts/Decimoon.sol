@@ -460,4 +460,88 @@ contract DecimoonV1 is
         );
     }
 
+     // ─────────────────────────────────────────────
+    //  Pay: Standard / Recurring
+    // ─────────────────────────────────────────────
+
+    /**
+     * @notice Pay a standard or recurring invoice.
+     *         Call calculateTotalDue() first to get the exact approve amount.
+     *
+     * Late fee formula: amount × lateFeesBps × daysLate / 10_000
+     * e.g. $500 invoice, 50 bps/day, 3 days late = $500 × 0.5% × 3 = $7.50
+     */
+    function payInvoice(uint256 id) external nonReentrant invoiceExists(id) {
+        Invoice storage inv = invoices[id];
+
+        if (inv.invoiceType == InvoiceType.Milestone) revert NotStandardOrRecurring();
+        if (inv.status == Status.Paid)                revert AlreadyPaid();
+        if (inv.status == Status.Cancelled)           revert AlreadyCancelled();
+        if (inv.status == Status.Disputed)            revert AlreadyDisputed();
+        if (inv.client != address(0) && inv.client != msg.sender)
+            revert WrongClient();
+
+        // Auto-mark overdue
+        if (
+            inv.dueDate != 0 &&
+            block.timestamp > inv.dueDate &&
+            inv.status == Status.Unpaid
+        ) {
+            inv.status = Status.Overdue;
+            emit InvoiceMarkedOverdue(id);
+        }
+
+        // Time-based late fee: lateFeesBps per day
+        // Capped at 100% of principal — client never owes more than 2× the invoice
+        uint256 lateFee = 0;
+        if (inv.status == Status.Overdue && inv.lateFeesBps > 0) {
+            uint256 daysLate = (block.timestamp - inv.dueDate) / 1 days;
+            if (daysLate == 0) daysLate = 1; // minimum 1 day if overdue
+            lateFee = (inv.amount * inv.lateFeesBps * daysLate) / 10_000;
+            if (lateFee > inv.amount) lateFee = inv.amount; // cap at 100%
+        }
+
+        // Platform fee applies to principal ONLY (not late fees).
+        // Late fees go fully to creator — client is not double-penalised.
+        // Client pays: inv.amount + platformFee + lateFee
+        // Creator gets: inv.amount + lateFee (full invoiced amount + late penalty)
+        uint256 fee           = (inv.amount * platformFeeBps) / 10_000;
+        uint256 creatorAmount = inv.amount + lateFee;
+
+        // Cache values needed after transfer before any state changes
+        address creator     = inv.creator;
+        address tokenAddr   = inv.token;
+        bool    isRecurring = inv.invoiceType == InvoiceType.Recurring;
+        uint256 nextDue     = isRecurring
+            ? _nextDueDate(inv.nextDueDate, inv.interval)
+            : 0;
+
+        // ── INTERACTIONS first (CEI) ──────────────────────────────────────
+        // State is unchanged during transfers — safe even against exotic tokens.
+        IERC20 token = IERC20(tokenAddr);
+        token.safeTransferFrom(msg.sender, creator, creatorAmount);
+        if (fee > 0) token.safeTransferFrom(msg.sender, feeRecipient, fee);
+
+        // ── EFFECTS after confirmed transfers ─────────────────────────────
+        inv.totalCollected += creatorAmount;
+
+        if (isRecurring) {
+            inv.nextDueDate = nextDue;
+            inv.dueDate     = nextDue;
+            inv.status      = Status.Unpaid;
+            inv.paidAt      = block.timestamp;
+            emit RecurringRenewed(id, nextDue, inv.totalCollected);
+        } else {
+            inv.status = Status.Paid;
+            inv.paidAt = block.timestamp;
+        }
+
+        emit InvoicePaid(
+            id, msg.sender, inv.amount,
+            fee, lateFee, creatorAmount,
+            block.timestamp
+        );
+    }
+
+
 }
