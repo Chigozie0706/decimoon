@@ -176,4 +176,49 @@ contract Decimoon is
         uint256 creatorReceives,
         uint256 timestamp
     );
+
+    event InvoiceCancelled(uint256 indexed id, address indexed by);
+    event InvoiceDisputed(
+        uint256 indexed id,
+        address indexed by,
+        string reason
+    );
+    event DisputeResolved(uint256 indexed id);
+    event InvoiceMarkedOverdue(uint256 indexed id);
+    event RecurringRenewed(
+        uint256 indexed id,
+        uint256 newDueDate,
+        uint256 totalCollected
+    );
+    event MetadataUpdated(uint256 indexed id, string newCID);
+    event TokenWhitelisted(address indexed token, bool status);
+    event FeeUpdated(uint256 oldBps, uint256 newBps);
+    event FeeRecipientUpdated(address oldRecipient, address newRecipient);
+
+    // ─────────────────────────────────────────────
+    //  Errors
+    // ─────────────────────────────────────────────
+
+    error InvoiceNotFound();
+    error AlreadyPaid();
+    error AlreadyCancelled();
+    error AlreadyDisputed();
+    error NotDisputed();
+    error WrongClient();
+    error InvalidAmount();
+    error InvalidInterval();
+    error InvalidDueDate();
+    error InvalidMilestones();
+    error MilestoneAlreadyReleased();
+    error MilestoneOutOfBounds();
+    error NotMilestoneInvoice();
+    error NotStandardOrRecurring();
+    error FeeTooHigh();
+    error FeeDeltaTooHigh();
+    error ZeroAddress();
+    error NotCreator();
+    error NotParty();
+    error TokenNotWhitelisted();
+    error EmptyCID();
+    error RecurringRequiresDueDate();
 }
