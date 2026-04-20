@@ -21,12 +21,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *   To upgrade: deploy DecimoonV2, then call upgradeToAndCall(newImpl, "").
  *
  * Dispute resolution:
- *   ⚠️ Owner has full control over dispute resolution.
+ *    Owner has full control over dispute resolution.
  *   This is intentional for V1. A decentralized arbitration
  *   system will be introduced in a future version.
  *
  * Refunds:
- *   ⚠️ Once an invoice is paid, funds are transferred immediately
+ *    Once an invoice is paid, funds are transferred immediately
  *   to the creator. There is no on-chain refund mechanism.
  *   Refunds must be handled off-chain between parties.
  *
@@ -113,7 +113,7 @@ contract DecimoonV1 is
 
     // ─────────────────────────────────────────────
     //  Storage
-    //  ⚠️  NEVER remove or reorder these variables.
+    //    NEVER remove or reorder these variables.
     //      Only append new variables ABOVE __gap
     //      when writing V2, V3, etc. Reduce __gap
     //      size by the number of slots you add.
@@ -636,6 +636,23 @@ contract DecimoonV1 is
         inv.disputeReason = reason;
         emit InvoiceDisputed(id, msg.sender, reason);
     }
+
+     /**
+     * @notice Resolve a dispute. Owner only.
+     *         Owner has full control over dispute resolution.
+     *         Resets status to Unpaid so payment can proceed.
+     *         Owner may also cancel the invoice after resolving if needed.
+     */
+    function resolveDispute(
+        uint256 id
+    ) external onlyOwner invoiceExists(id) {
+        Invoice storage inv = invoices[id];
+        if (inv.status != Status.Disputed) revert NotDisputed();
+        inv.status        = Status.Unpaid;
+        inv.disputeReason = "";
+        emit DisputeResolved(id);
+    }
+
 
 
 }
