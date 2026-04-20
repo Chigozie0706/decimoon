@@ -144,4 +144,17 @@ contract Decimoon is
         address indexed feeRecipient,
         uint256 platformFeeBps
     );
+
+    event InvoiceCreated(
+        uint256 indexed id,
+        address indexed creator,
+        address indexed client,
+        string invoiceRef,
+        string metadataCID,
+        address token,
+        uint256 amount,
+        uint256 dueDate,
+        InvoiceType invoiceType,
+        Interval interval
+    );
 }
