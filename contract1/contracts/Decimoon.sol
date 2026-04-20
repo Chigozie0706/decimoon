@@ -684,5 +684,15 @@ contract DecimoonV1 is
         emit MetadataUpdated(id, newCID);
     }
 
+// ─────────────────────────────────────────────
+    //  Views
+    // ─────────────────────────────────────────────
+
+    function getInvoice(
+        uint256 id
+    ) external view invoiceExists(id) returns (Invoice memory) {
+        return invoices[id];
+    }
+
 
 }
