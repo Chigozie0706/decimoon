@@ -695,4 +695,17 @@ contract DecimoonV1 is
     }
 
 
+ function getMilestones(
+        uint256 id
+    ) external view invoiceExists(id) returns (Milestone[] memory) {
+        return _milestones[id];
+    }
+
+    function getCreatorInvoices(
+        address creator
+    ) external view returns (uint256[] memory) {
+        return _creatorInvoices[creator];
+    }
+
+
 }
