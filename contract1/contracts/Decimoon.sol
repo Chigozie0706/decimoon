@@ -841,4 +841,79 @@ function getClientInvoices(
     }
 
 
+// ─────────────────────────────────────────────
+    //  Admin
+    // ─────────────────────────────────────────────
+
+    /**
+     * @notice Update platform fee.
+     *         Hard cap: MAX_FEE_BPS (10%).
+     *         Max change per call: MAX_FEE_DELTA_BPS (2%).
+     *         This prevents sudden large fee increases.
+     */
+    function setFee(uint256 newBps) external onlyOwner {
+        if (newBps > MAX_FEE_BPS) revert FeeTooHigh();
+        uint256 delta = newBps > platformFeeBps
+            ? newBps - platformFeeBps
+            : platformFeeBps - newBps;
+        if (delta > MAX_FEE_DELTA_BPS) revert FeeDeltaTooHigh();
+        emit FeeUpdated(platformFeeBps, newBps);
+        platformFeeBps = newBps;
+    }
+
+    function setFeeRecipient(address newRecipient) external onlyOwner {
+        if (newRecipient == address(0)) revert ZeroAddress();
+        emit FeeRecipientUpdated(feeRecipient, newRecipient);
+        feeRecipient = newRecipient;
+    }
+
+    function setTokenWhitelist(
+        address token,
+        bool    status
+    ) external onlyOwner {
+        if (token == address(0)) revert ZeroAddress();
+        tokenWhitelist[token] = status;
+        emit TokenWhitelisted(token, status);
+    }
+
+    // ─────────────────────────────────────────────
+    //  Internal Helpers
+    // ─────────────────────────────────────────────
+
+    function _nextDueDate(
+        uint256  from,
+        Interval interval
+    ) internal pure returns (uint256) {
+        if (interval == Interval.Weekly)   return from + 7 days;
+        if (interval == Interval.Biweekly) return from + 14 days;
+        if (interval == Interval.Monthly)  return from + 30 days;
+        return 0;
+    }
+
+    function _generateRef(
+        uint256 count
+    ) internal pure returns (string memory) {
+        string memory num = _uintToString(count);
+        if      (count < 10)  num = string(abi.encodePacked("00", num));
+        else if (count < 100) num = string(abi.encodePacked("0",  num));
+        return string(abi.encodePacked("INV-", num));
+    }
+
+    function _uintToString(
+        uint256 value
+    ) internal pure returns (string memory) {
+        if (value == 0) return "0";
+        uint256 temp   = value;
+        uint256 digits = 0;
+        while (temp != 0) { digits++; temp /= 10; }
+        bytes memory buf = new bytes(digits);
+        while (value != 0) {
+            digits--;
+            buf[digits] = bytes1(uint8(48 + (value % 10)));
+            value /= 10;
+        }
+        return string(buf);
+    }
+
+
 }
