@@ -167,4 +167,13 @@ contract Decimoon is
         uint256 creatorReceives,
         uint256 timestamp
     );
+
+    event MilestoneReleased(
+        uint256 indexed invoiceId,
+        uint256 indexed milestoneIndex,
+        uint256 amount,
+        uint256 fee,
+        uint256 creatorReceives,
+        uint256 timestamp
+    );
 }
