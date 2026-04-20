@@ -60,4 +60,11 @@ contract Decimoon is
         Recurring, // auto-renews
         Milestone // per-phase payments
     }
+
+    enum Interval {
+        None,
+        Weekly,
+        Biweekly,
+        Monthly
+    }
 }
