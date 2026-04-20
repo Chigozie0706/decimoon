@@ -67,4 +67,12 @@ contract Decimoon is
         Biweekly,
         Monthly
     }
+
+    /// @dev Only amounts stored on-chain.
+    ///      Milestone descriptions live in IPFS metadata JSON.
+    struct Milestone {
+        uint256 amount;
+        bool released;
+        uint256 releasedAt;
+    }
 }
