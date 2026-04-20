@@ -544,4 +544,66 @@ contract DecimoonV1 is
     }
 
 
+ // ─────────────────────────────────────────────
+    //  Pay: Milestone
+    // ─────────────────────────────────────────────
+
+    /**
+     * @notice Release a single milestone payment.
+     *         Client approves and triggers each phase individually.
+     */
+    function releaseMilestone(
+        uint256 invoiceId,
+        uint256 milestoneIndex
+    ) external nonReentrant invoiceExists(invoiceId) {
+        Invoice storage inv = invoices[invoiceId];
+
+        if (inv.invoiceType != InvoiceType.Milestone) revert NotMilestoneInvoice();
+        if (inv.status == Status.Cancelled)           revert AlreadyCancelled();
+        if (inv.status == Status.Disputed)            revert AlreadyDisputed();
+        if (inv.client != address(0) && inv.client != msg.sender)
+            revert WrongClient();
+
+        Milestone[] storage ms = _milestones[invoiceId];
+        if (milestoneIndex >= ms.length) revert MilestoneOutOfBounds();
+
+        Milestone storage m = ms[milestoneIndex];
+        if (m.released) revert MilestoneAlreadyReleased();
+
+        // Option B: platform fee added ON TOP — creator receives full milestone amount.
+        // Client pays: m.amount + platformFee
+        // Creator gets: m.amount (full milestone amount)
+        uint256 fee           = (m.amount * platformFeeBps) / 10_000;
+        uint256 creatorAmount = m.amount;
+        uint256 milestoneAmt  = m.amount; // cache before state changes
+
+        // Cache addresses before state changes
+        address creator   = inv.creator;
+        address tokenAddr = inv.token;
+        uint256 msLength  = ms.length;
+
+        // ── INTERACTIONS first (CEI) ──────────────────────────────────────
+        IERC20 token = IERC20(tokenAddr);
+        token.safeTransferFrom(msg.sender, creator, creatorAmount);
+        if (fee > 0) token.safeTransferFrom(msg.sender, feeRecipient, fee);
+
+        // ── EFFECTS after confirmed transfers ─────────────────────────────
+        m.released              = true;
+        m.releasedAt            = block.timestamp;
+        inv.totalCollected     += milestoneAmt;
+        inv.milestonesReleased += 1;
+
+        // O(1) completion check — no loop needed
+        if (inv.milestonesReleased == msLength) {
+            inv.status = Status.Paid;
+            inv.paidAt = block.timestamp;
+        }
+
+        emit MilestoneReleased(
+            invoiceId, milestoneIndex,
+            milestoneAmt, fee, creatorAmount,
+            block.timestamp
+        );
+    }
+
 }
