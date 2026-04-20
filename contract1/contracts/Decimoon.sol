@@ -21,12 +21,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *   To upgrade: deploy DecimoonV2, then call upgradeToAndCall(newImpl, "").
  *
  * Dispute resolution:
- *   ⚠️ Owner has full control over dispute resolution.
+ *   Owner has full control over dispute resolution.
  *   This is intentional for V1. A decentralized arbitration
  *   system will be introduced in a future version.
  *
  * Refunds:
- *   ⚠️ Once an invoice is paid, funds are transferred immediately
+ *   Once an invoice is paid, funds are transferred immediately
  *   to the creator. There is no on-chain refund mechanism.
  *   Refunds must be handled off-chain between parties.
  *
@@ -102,4 +102,12 @@ contract Decimoon is
         // Dispute
         string disputeReason;
     }
+
+    // ─────────────────────────────────────────────
+    //  Constants
+    // ─────────────────────────────────────────────
+
+    uint256 public constant MAX_FEE_BPS = 1000; // 10% platform fee cap
+    uint256 public constant MAX_LATE_BPS = 500; // 5% per day late fee cap
+    uint256 public constant MAX_FEE_DELTA_BPS = 200; // max change per setFee() call
 }
