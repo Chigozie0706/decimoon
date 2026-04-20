@@ -389,4 +389,75 @@ contract DecimoonV1 is
             interval
         );
     }
+
+
+    // ─────────────────────────────────────────────
+    //  Create: Milestone
+     *         Only amounts on-chain; descriptions in IPFS metadata.
+     * @param client            Payer address.
+     * @param token             Whitelisted ERC-20 token.
+     * @param dueDate           Overall deadline. 0 = none.
+     * @param milestoneAmounts  Per-milestone amounts. At least one required.
+     * @param metadataCID       IPFS CID of metadata JSON.
+     */
+    function createMilestoneInvoice(
+        address   client,
+        address   token,
+        uint256   dueDate,
+        uint256[] calldata milestoneAmounts,
+        string    calldata metadataCID
+    ) external returns (uint256 id) {
+        if (token == address(0))                          revert ZeroAddress();
+        if (!tokenWhitelist[token])                       revert TokenNotWhitelisted();
+        if (milestoneAmounts.length == 0)                 revert InvalidMilestones();
+        if (bytes(metadataCID).length == 0)               revert EmptyCID();
+        if (dueDate != 0 && dueDate <= block.timestamp)   revert InvalidDueDate();
+
+        uint256 total = 0;
+        for (uint256 i = 0; i < milestoneAmounts.length; i++) {
+            if (milestoneAmounts[i] == 0) revert InvalidAmount();
+            total += milestoneAmounts[i];
+        }
+
+        id = _nextId++;
+        string memory ref = _generateRef(++_creatorCount[msg.sender]);
+
+        invoices[id] = Invoice({
+            id:             id,
+            invoiceRef:     ref,
+            metadataCID:    metadataCID,
+            creator:        msg.sender,
+            client:         client,
+            token:          token,
+            amount:         total,
+            dueDate:        dueDate,
+            status:         Status.Unpaid,
+            invoiceType:    InvoiceType.Milestone,
+            lateFeesBps:    0,
+            interval:       Interval.None,
+            nextDueDate:    0,
+            totalCollected:     0,
+            milestonesReleased: 0,
+            createdAt:          block.timestamp,
+            paidAt:             0,
+            disputeReason:      ""
+        });
+
+        for (uint256 i = 0; i < milestoneAmounts.length; i++) {
+            _milestones[id].push(Milestone({
+                amount:     milestoneAmounts[i],
+                released:   false,
+                releasedAt: 0
+            }));
+        }
+
+        _creatorInvoices[msg.sender].push(id);
+        if (client != address(0)) _clientInvoices[client].push(id);
+
+        emit InvoiceCreated(
+            id, msg.sender, client, ref, metadataCID,
+            token, total, dueDate, InvoiceType.Milestone, Interval.None
+        );
+    }
+
 }
