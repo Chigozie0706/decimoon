@@ -777,4 +777,42 @@ function getClientInvoices(
     }
 
 
+/// @notice Calculate platform fee for a given amount (fee on top).
+    ///         creatorReceives = amount (full), clientPays = amount + fee
+    function calculateFee(
+        uint256 amount
+    ) external view returns (uint256 fee, uint256 clientPays) {
+        fee        = (amount * platformFeeBps) / 10_000;
+        clientPays = amount + fee;
+    }
+
+    /**
+     * @notice Returns the exact token amount the client must approve
+     *         before calling payInvoice(). Call this immediately before
+     *         triggering the wallet — never cache this value.
+     *
+     *         For milestone invoices use getMilestoneClientTotal() instead.
+     */
+    function getClientTotal(
+        uint256 id
+    ) external view invoiceExists(id) returns (uint256 totalDue) {
+        Invoice storage inv = invoices[id];
+
+        uint256 lateFee = 0;
+        if (
+            inv.lateFeesBps > 0 &&
+            inv.dueDate != 0 &&
+            block.timestamp > inv.dueDate
+        ) {
+            uint256 daysLate = (block.timestamp - inv.dueDate) / 1 days;
+            if (daysLate == 0) daysLate = 1;
+            lateFee = (inv.amount * inv.lateFeesBps * daysLate) / 10_000;
+            if (lateFee > inv.amount) lateFee = inv.amount; // cap at 100%
+        }
+
+        uint256 platformFee = (inv.amount * platformFeeBps) / 10_000;
+        totalDue = inv.amount + lateFee + platformFee;
+    }
+
+
 }
