@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * @title Decimoon
+ * @title DecimoonV1
  * @notice Programmable on-chain invoices — UUPS upgradeable settlement layer.
  *
  * Architecture:
@@ -21,12 +21,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *   To upgrade: deploy DecimoonV2, then call upgradeToAndCall(newImpl, "").
  *
  * Dispute resolution:
- *   Owner has full control over dispute resolution.
+ *   ⚠️ Owner has full control over dispute resolution.
  *   This is intentional for V1. A decentralized arbitration
  *   system will be introduced in a future version.
  *
  * Refunds:
- *   Once an invoice is paid, funds are transferred immediately
+ *   ⚠️ Once an invoice is paid, funds are transferred immediately
  *   to the creator. There is no on-chain refund mechanism.
  *   Refunds must be handled off-chain between parties.
  *
@@ -34,8 +34,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *      existing state variables between upgrades.
  *      __gap reserves slots for future V1 storage additions.
  */
-
-contract Decimoon is
+contract DecimoonV1 is
     Initializable,
     ReentrancyGuardUpgradeable,
     Ownable2StepUpgradeable,
@@ -97,6 +96,7 @@ contract Decimoon is
         uint256 nextDueDate;
         // Tracking
         uint256 totalCollected;
+        uint256 milestonesReleased; // counter — avoids O(n) loop on milestone completion
         uint256 createdAt;
         uint256 paidAt;
         // Dispute
@@ -113,10 +113,10 @@ contract Decimoon is
 
     // ─────────────────────────────────────────────
     //  Storage
-    //    NEVER remove or reorder these variables.
-    //    Only append new variables ABOVE __gap
-    //    when writing V2, V3, etc. Reduce __gap
-    //    size by the number of slots you add.
+    //  ⚠️  NEVER remove or reorder these variables.
+    //      Only append new variables ABOVE __gap
+    //      when writing V2, V3, etc. Reduce __gap
+    //      size by the number of slots you add.
     // ─────────────────────────────────────────────
 
     uint256 public platformFeeBps;
@@ -241,5 +241,152 @@ contract Decimoon is
         if (inv.creator != msg.sender && inv.client != msg.sender)
             revert NotParty();
         _;
+    }
+
+    // ─────────────────────────────────────────────
+    //  Constructor — disabled for proxy pattern
+    // ─────────────────────────────────────────────
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    // ─────────────────────────────────────────────
+    //  Initialize
+    // ─────────────────────────────────────────────
+
+    /**
+     * @notice Initialize the contract. Called once through the proxy on deployment.
+     * @param _initialOwner  Address that will own and control the contract.
+     *                       Pass your wallet or multisig — NOT a factory address.
+     * @param _feeRecipient  Address receiving platform fees (can be same as owner).
+     * @param _initialTokens Tokens to whitelist at deploy time.
+     *                       Celo mainnet:
+     *                       cUSD  0x765DE816845861e75A25fCA122bb6898B8B1282a
+     *                       cEUR  0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73
+     *                       cKES  0x456a3D042C0DbD3db53D5489e98dFb038553B0d0
+     *                       USDC  0xcebA9300f2b948710d2653dD7B07f33A8B32118C
+     */
+    function initialize(
+        address _initialOwner,
+        address _feeRecipient,
+        address[] memory _initialTokens
+    ) external initializer {
+        if (_initialOwner == address(0)) revert ZeroAddress();
+        if (_feeRecipient == address(0)) revert ZeroAddress();
+
+        // Init order matters — always do this first
+        __ReentrancyGuard_init();
+        __Ownable_init(_initialOwner);
+        __Ownable2Step_init();
+        __UUPSUpgradeable_init();
+
+        feeRecipient = _feeRecipient;
+        platformFeeBps = 200; // 2% — must never exceed MAX_FEE_BPS
+        require(platformFeeBps <= MAX_FEE_BPS, "fee exceeds max");
+        _nextId = 1;
+
+        for (uint256 i = 0; i < _initialTokens.length; i++) {
+            if (_initialTokens[i] != address(0)) {
+                tokenWhitelist[_initialTokens[i]] = true;
+                emit TokenWhitelisted(_initialTokens[i], true);
+            }
+        }
+
+        emit ContractInitialized(_initialOwner, _feeRecipient, 200);
+    }
+
+    // ─────────────────────────────────────────────
+    //  UUPS — authorize upgrade
+    // ─────────────────────────────────────────────
+
+    /**
+     * @dev Only owner can upgrade the implementation.
+     *      Called internally by upgradeToAndCall().
+     */
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
+
+    // ─────────────────────────────────────────────
+    //  Create: Standard / Recurring
+    // ─────────────────────────────────────────────
+
+    /**
+     * @notice Create a standard or recurring invoice.
+     * @param client       Payer address. address(0) = open invoice.
+     * @param token        Whitelisted ERC-20 token.
+     * @param amount       Total amount in token units.
+     * @param dueDate      Unix timestamp deadline.
+     *                     Required for recurring invoices.
+     *                     0 = no deadline (standard only).
+     * @param lateFeesBps  Late fee rate in bps PER DAY. 0 = disabled.
+     *                     e.g. 50 = 0.5% per day late.
+     * @param isRecurring  True = auto-renews on interval.
+     * @param interval     None | Weekly | Biweekly | Monthly.
+     * @param metadataCID  IPFS CID of metadata JSON.
+     */
+    function createInvoice(
+        address client,
+        address token,
+        uint256 amount,
+        uint256 dueDate,
+        uint256 lateFeesBps,
+        bool isRecurring,
+        Interval interval,
+        string calldata metadataCID
+    ) external returns (uint256 id) {
+        if (token == address(0)) revert ZeroAddress();
+        if (!tokenWhitelist[token]) revert TokenNotWhitelisted();
+        if (amount == 0) revert InvalidAmount();
+        if (bytes(metadataCID).length == 0) revert EmptyCID();
+        if (dueDate != 0 && dueDate <= block.timestamp) revert InvalidDueDate();
+        if (isRecurring && interval == Interval.None) revert InvalidInterval();
+        if (isRecurring && dueDate == 0) revert RecurringRequiresDueDate();
+        if (lateFeesBps > MAX_LATE_BPS) revert FeeTooHigh();
+
+        id = _nextId++;
+        InvoiceType iType = isRecurring
+            ? InvoiceType.Recurring
+            : InvoiceType.Standard;
+        string memory ref = _generateRef(++_creatorCount[msg.sender]);
+
+        invoices[id] = Invoice({
+            id: id,
+            invoiceRef: ref,
+            metadataCID: metadataCID,
+            creator: msg.sender,
+            client: client,
+            token: token,
+            amount: amount,
+            dueDate: dueDate,
+            status: Status.Unpaid,
+            invoiceType: iType,
+            lateFeesBps: lateFeesBps,
+            interval: isRecurring ? interval : Interval.None,
+            nextDueDate: isRecurring ? dueDate : 0,
+            totalCollected: 0,
+            milestonesReleased: 0,
+            createdAt: block.timestamp,
+            paidAt: 0,
+            disputeReason: ""
+        });
+
+        _creatorInvoices[msg.sender].push(id);
+        if (client != address(0)) _clientInvoices[client].push(id);
+
+        emit InvoiceCreated(
+            id,
+            msg.sender,
+            client,
+            ref,
+            metadataCID,
+            token,
+            amount,
+            dueDate,
+            iType,
+            interval
+        );
     }
 }
