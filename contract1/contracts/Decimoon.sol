@@ -221,4 +221,25 @@ contract Decimoon is
     error TokenNotWhitelisted();
     error EmptyCID();
     error RecurringRequiresDueDate();
+
+    // ─────────────────────────────────────────────
+    //  Modifiers
+    // ─────────────────────────────────────────────
+
+    modifier invoiceExists(uint256 id) {
+        if (invoices[id].id == 0) revert InvoiceNotFound();
+        _;
+    }
+
+    modifier onlyCreator(uint256 id) {
+        if (invoices[id].creator != msg.sender) revert NotCreator();
+        _;
+    }
+
+    modifier onlyParty(uint256 id) {
+        Invoice storage inv = invoices[id];
+        if (inv.creator != msg.sender && inv.client != msg.sender)
+            revert NotParty();
+        _;
+    }
 }
