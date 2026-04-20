@@ -730,4 +730,51 @@ function getClientInvoices(
         return result;
     }
 
+    /**
+     * @notice Preview exact amounts before paying.
+     *         Always call this right before triggering wallet approval —
+     *         late fees accrue per day so the amount can change overnight.
+     *         Approve exactly `totalDue` on the token contract.
+     *
+     * Fee model:
+     *   Platform fee: applied to principal ONLY (not late fees)
+     *   Late fees:    go fully to creator
+     *   Creator gets: principal + lateFee
+     *   Client pays:  principal + platformFee + lateFee
+     *
+     * Late fee = principal × lateFeesBps × daysLate / 10_000
+     */
+    function calculateTotalDue(
+        uint256 id
+    ) external view invoiceExists(id) returns (
+        uint256 principal,
+        uint256 lateFee,
+        uint256 daysLate,
+        uint256 platformFee,
+        uint256 creatorReceives,
+        uint256 totalDue
+    ) {
+        Invoice storage inv = invoices[id];
+        principal = inv.amount;
+        lateFee   = 0;
+        daysLate  = 0;
+
+        if (
+            inv.lateFeesBps > 0 &&
+            inv.dueDate != 0 &&
+            block.timestamp > inv.dueDate
+        ) {
+            daysLate = (block.timestamp - inv.dueDate) / 1 days;
+            if (daysLate == 0) daysLate = 1;
+            lateFee = (principal * inv.lateFeesBps * daysLate) / 10_000;
+            if (lateFee > principal) lateFee = principal; // cap at 100%
+        }
+
+        // Fee on principal only — late fees fully to creator
+        platformFee     = (principal * platformFeeBps) / 10_000;
+        creatorReceives = principal + lateFee;
+        totalDue        = creatorReceives + platformFee;
+    }
+
+
 }
