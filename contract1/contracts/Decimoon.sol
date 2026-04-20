@@ -653,6 +653,36 @@ contract DecimoonV1 is
         emit DisputeResolved(id);
     }
 
+ // ─────────────────────────────────────────────
+    //  Mark Overdue
+    // ─────────────────────────────────────────────
+
+    /// @notice Anyone can mark overdue once past due date. Good for keepers / bots.
+    function markOverdue(uint256 id) external invoiceExists(id) {
+        Invoice storage inv = invoices[id];
+        if (inv.status != Status.Unpaid) return;
+        if (inv.dueDate == 0 || block.timestamp <= inv.dueDate) return;
+        inv.status = Status.Overdue;
+        emit InvoiceMarkedOverdue(id);
+    }
+
+    // ─────────────────────────────────────────────
+    //  Metadata Update
+    // ─────────────────────────────────────────────
+
+    /// @notice Update IPFS metadata CID before payment (e.g. fix a typo).
+    ///         Not allowed once paid or cancelled.
+    function updateMetadata(
+        uint256 id,
+        string calldata newCID
+    ) external invoiceExists(id) onlyCreator(id) {
+        Invoice storage inv = invoices[id];
+        if (inv.status == Status.Paid)      revert AlreadyPaid();
+        if (inv.status == Status.Cancelled) revert AlreadyCancelled();
+        if (bytes(newCID).length == 0)      revert EmptyCID();
+        inv.metadataCID = newCID;
+        emit MetadataUpdated(id, newCID);
+    }
 
 
 }
