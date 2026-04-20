@@ -707,5 +707,27 @@ contract DecimoonV1 is
         return _creatorInvoices[creator];
     }
 
+function getClientInvoices(
+        address client
+    ) external view returns (uint256[] memory) {
+        return _clientInvoices[client];
+    }
+
+    function getInvoicesByStatus(
+        address creator,
+        Status  status
+    ) external view returns (uint256[] memory) {
+        uint256[] storage ids = _creatorInvoices[creator];
+        uint256 count = 0;
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (invoices[ids[i]].status == status) count++;
+        }
+        uint256[] memory result = new uint256[](count);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (invoices[ids[i]].status == status) result[idx++] = ids[i];
+        }
+        return result;
+    }
 
 }
