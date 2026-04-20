@@ -43,3 +43,14 @@ contract Decimoon is
     UUPSUpgradeable
 {
     using SafeERC20 for IERC20;
+
+
+    //  Types
+
+    enum Status {
+        Unpaid,
+        Paid,
+        Cancelled,
+        Overdue,
+        Disputed
+    }
