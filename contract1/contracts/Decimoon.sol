@@ -157,4 +157,14 @@ contract Decimoon is
         InvoiceType invoiceType,
         Interval interval
     );
+
+    event InvoicePaid(
+        uint256 indexed id,
+        address indexed payer,
+        uint256 amount,
+        uint256 fee,
+        uint256 lateFee,
+        uint256 creatorReceives,
+        uint256 timestamp
+    );
 }
