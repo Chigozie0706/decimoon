@@ -814,5 +814,31 @@ function getClientInvoices(
         totalDue = inv.amount + lateFee + platformFee;
     }
 
+ /**
+     * @notice Returns the exact token amount the client must approve
+     *         before calling releaseMilestone().
+     * @param invoiceId      The invoice ID.
+     * @param milestoneIndex The milestone index to release.
+     */
+    function getMilestoneClientTotal(
+        uint256 invoiceId,
+        uint256 milestoneIndex
+    ) external view invoiceExists(invoiceId) returns (uint256 totalDue) {
+        Milestone[] storage ms = _milestones[invoiceId];
+        if (milestoneIndex >= ms.length) revert MilestoneOutOfBounds();
+        uint256 amount      = ms[milestoneIndex].amount;
+        uint256 platformFee = (amount * platformFeeBps) / 10_000;
+        totalDue = amount + platformFee;
+    }
+
+    function totalInvoices() external view returns (uint256) {
+        return _nextId - 1;
+    }
+
+    /// @notice Returns the current implementation address.
+    function implementation() external view returns (address) {
+        return _getImplementation();
+    }
+
 
 }
