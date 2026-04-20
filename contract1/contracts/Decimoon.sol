@@ -138,4 +138,10 @@ contract Decimoon is
     // ─────────────────────────────────────────────
     //  Events
     // ─────────────────────────────────────────────
+
+    event ContractInitialized(
+        address indexed owner,
+        address indexed feeRecipient,
+        uint256 platformFeeBps
+    );
 }
