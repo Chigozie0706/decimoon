@@ -110,4 +110,23 @@ contract Decimoon is
     uint256 public constant MAX_FEE_BPS = 1000; // 10% platform fee cap
     uint256 public constant MAX_LATE_BPS = 500; // 5% per day late fee cap
     uint256 public constant MAX_FEE_DELTA_BPS = 200; // max change per setFee() call
+
+    // ─────────────────────────────────────────────
+    //  Storage
+    //    NEVER remove or reorder these variables.
+    //    Only append new variables ABOVE __gap
+    //    when writing V2, V3, etc. Reduce __gap
+    //    size by the number of slots you add.
+    // ─────────────────────────────────────────────
+
+    uint256 public platformFeeBps;
+    address public feeRecipient;
+    uint256 private _nextId;
+
+    mapping(uint256 => Invoice) public invoices;
+    mapping(uint256 => Milestone[]) private _milestones;
+    mapping(address => uint256[]) private _creatorInvoices;
+    mapping(address => uint256[]) private _clientInvoices;
+    mapping(address => uint256) private _creatorCount;
+    mapping(address => bool) public tokenWhitelist;
 }
