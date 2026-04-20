@@ -606,4 +606,36 @@ contract DecimoonV1 is
         );
     }
 
+    // ─────────────────────────────────────────────
+    //  Cancel / Dispute
+    // ─────────────────────────────────────────────
+
+    function cancelInvoice(
+        uint256 id
+    ) external invoiceExists(id) onlyCreator(id) {
+        Invoice storage inv = invoices[id];
+        if (inv.status == Status.Paid)      revert AlreadyPaid();
+        if (inv.status == Status.Cancelled) revert AlreadyCancelled();
+        inv.status = Status.Cancelled;
+        emit InvoiceCancelled(id, msg.sender);
+    }
+
+    /**
+     * @notice Raise a dispute. Freezes the invoice — no payments accepted.
+     *         Either creator or client can dispute.
+     */
+    function disputeInvoice(
+        uint256 id,
+        string calldata reason
+    ) external invoiceExists(id) onlyParty(id) {
+        Invoice storage inv = invoices[id];
+        if (inv.status == Status.Paid)      revert AlreadyPaid();
+        if (inv.status == Status.Cancelled) revert AlreadyCancelled();
+        if (inv.status == Status.Disputed)  revert AlreadyDisputed();
+        inv.status        = Status.Disputed;
+        inv.disputeReason = reason;
+        emit InvoiceDisputed(id, msg.sender, reason);
+    }
+
+
 }
