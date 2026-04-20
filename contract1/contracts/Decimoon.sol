@@ -75,4 +75,31 @@ contract Decimoon is
         bool released;
         uint256 releasedAt;
     }
+
+    struct Invoice {
+        // Identity
+        uint256 id;
+        string invoiceRef; // e.g. "INV-001" — auto-generated per creator
+        string metadataCID; // IPFS CID → title, names, line items, notes
+        // Parties
+        address creator;
+        address client; // address(0) = open invoice
+        // Payment
+        address token; // whitelisted ERC-20
+        uint256 amount; // total in token units
+        uint256 dueDate; // unix timestamp; 0 = no deadline
+        Status status;
+        InvoiceType invoiceType;
+        // Late fees
+        uint256 lateFeesBps; // rate in bps e.g. 150 = 1.5% per day
+        // Recurring
+        Interval interval;
+        uint256 nextDueDate;
+        // Tracking
+        uint256 totalCollected;
+        uint256 createdAt;
+        uint256 paidAt;
+        // Dispute
+        string disputeReason;
+    }
 }
