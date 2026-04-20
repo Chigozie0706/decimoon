@@ -129,4 +129,13 @@ contract Decimoon is
     mapping(address => uint256[]) private _clientInvoices;
     mapping(address => uint256) private _creatorCount;
     mapping(address => bool) public tokenWhitelist;
+
+    /// @dev Reserves 50 storage slots for future V1 variables.
+    ///      Each new variable added in an upgrade uses one slot.
+    ///      Reduce this by 1 per added variable e.g. [49], [48]...
+    uint256[50] private __gap;
+
+    // ─────────────────────────────────────────────
+    //  Events
+    // ─────────────────────────────────────────────
 }
