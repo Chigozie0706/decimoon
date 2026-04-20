@@ -35,7 +35,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *      __gap reserves slots for future V1 storage additions.
  */
 
-
 contract Decimoon is
     Initializable,
     ReentrancyGuardUpgradeable,
@@ -44,8 +43,9 @@ contract Decimoon is
 {
     using SafeERC20 for IERC20;
 
-
+    // ─────────────────────────────────────────────
     //  Types
+    // ─────────────────────────────────────────────
 
     enum Status {
         Unpaid,
@@ -54,3 +54,10 @@ contract Decimoon is
         Overdue,
         Disputed
     }
+
+    enum InvoiceType {
+        Standard, // one-time
+        Recurring, // auto-renews
+        Milestone // per-phase payments
+    }
+}
