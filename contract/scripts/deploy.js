@@ -30,14 +30,14 @@ async function main() {
   if (balance === 0n) {
     throw new Error(
       "Deployer has no balance. Fund your wallet before deploying.\n" +
-      "Testnet faucet: https://faucet.celo.org/celo-sepolia"
+        "Testnet faucet: https://faucet.celo.org/celo-sepolia",
     );
   }
 
   // ── Config ──────────────────────────────────────────────────────────────────
   // Change feeRecipient to your treasury wallet before mainnet deploy
-  const initialOwner  = deployer.address;
-  const feeRecipient  = deployer.address;
+  const initialOwner = deployer.address;
+  const feeRecipient = deployer.address;
   const initialTokens = TOKENS[networkName];
 
   if (!initialTokens) {
@@ -62,13 +62,16 @@ async function main() {
     {
       initializer: "initialize",
       kind: "uups",
-    }
+      unsafeAllow: ["constructor"],
+    },
   );
 
   await proxy.waitForDeployment();
 
   const proxyAddress = await proxy.getAddress();
-  const implAddress  = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+  const implAddress = await upgrades.erc1967.getImplementationAddress(
+    proxyAddress,
+  );
 
   console.log("\n Deployed successfully!");
   console.log("─────────────────────────────────────────");
@@ -100,7 +103,7 @@ async function main() {
 
   fs.writeFileSync(
     `deployments-${networkName}.json`,
-    JSON.stringify(deployData, null, 2)
+    JSON.stringify(deployData, null, 2),
   );
   console.log(`\n Addresses saved to deployments-${networkName}.json`);
 }

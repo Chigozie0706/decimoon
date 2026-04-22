@@ -14,7 +14,7 @@ async function main() {
   if (!fs.existsSync(deployFile)) {
     throw new Error(
       `No deployment file found for ${networkName}.\n` +
-      `Run deploy.js first: pnpm hardhat run scripts/deploy.js --network ${networkName}`
+        `Run deploy.js first: pnpm hardhat run scripts/deploy.js --network ${networkName}`,
     );
   }
 
@@ -35,12 +35,13 @@ async function main() {
   // throws if you accidentally broke the layout
   const upgraded = await upgrades.upgradeProxy(proxyAddress, NewImpl, {
     kind: "uups",
+    unsafeAllow: ["constructor"],
   });
 
   await upgraded.waitForDeployment();
 
   const newImplAddress = await upgrades.erc1967.getImplementationAddress(
-    proxyAddress
+    proxyAddress,
   );
 
   console.log("\n Upgrade successful!");
@@ -51,15 +52,15 @@ async function main() {
 
   // Update deployment file
   const deployData = JSON.parse(fs.readFileSync(deployFile, "utf8"));
-  deployData.implAddress  = newImplAddress;
-  deployData.upgradedAt   = new Date().toISOString();
-  deployData.upgradedTo   = NEW_CONTRACT_NAME;
+  deployData.implAddress = newImplAddress;
+  deployData.upgradedAt = new Date().toISOString();
+  deployData.upgradedTo = NEW_CONTRACT_NAME;
   fs.writeFileSync(deployFile, JSON.stringify(deployData, null, 2));
 
   console.log("\n Next steps:");
   console.log("Verify new implementation:");
   console.log(
-    `   pnpm hardhat verify --network ${networkName} ${newImplAddress}`
+    `   pnpm hardhat verify --network ${networkName} ${newImplAddress}`,
   );
 }
 
