@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- * @title DecimoonV1
+ * @title Decimoon
  * @notice Programmable on-chain invoices — UUPS upgradeable settlement layer.
  *
  * Architecture:
@@ -34,9 +35,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *      existing state variables between upgrades.
  *      __gap reserves slots for future V1 storage additions.
  */
-contract DecimoonV1 is
+contract Decimoon is
     Initializable,
-    ReentrancyGuardUpgradeable,
+    ReentrancyGuard,
     Ownable2StepUpgradeable,
     UUPSUpgradeable
 {
@@ -276,11 +277,8 @@ contract DecimoonV1 is
         if (_initialOwner == address(0)) revert ZeroAddress();
         if (_feeRecipient == address(0)) revert ZeroAddress();
 
-        // Init order matters — always do this first
-        __ReentrancyGuard_init();
         __Ownable_init(_initialOwner);
         __Ownable2Step_init();
-        __UUPSUpgradeable_init();
 
         feeRecipient = _feeRecipient;
         platformFeeBps = 200; // 2% — must never exceed MAX_FEE_BPS
@@ -390,9 +388,10 @@ contract DecimoonV1 is
         );
     }
 
-
     // ─────────────────────────────────────────────
     //  Create: Milestone
+
+    /**
      *         Only amounts on-chain; descriptions in IPFS metadata.
      * @param client            Payer address.
      * @param token             Whitelisted ERC-20 token.
@@ -400,18 +399,19 @@ contract DecimoonV1 is
      * @param milestoneAmounts  Per-milestone amounts. At least one required.
      * @param metadataCID       IPFS CID of metadata JSON.
      */
+
     function createMilestoneInvoice(
-        address   client,
-        address   token,
-        uint256   dueDate,
+        address client,
+        address token,
+        uint256 dueDate,
         uint256[] calldata milestoneAmounts,
-        string    calldata metadataCID
+        string calldata metadataCID
     ) external returns (uint256 id) {
-        if (token == address(0))                          revert ZeroAddress();
-        if (!tokenWhitelist[token])                       revert TokenNotWhitelisted();
-        if (milestoneAmounts.length == 0)                 revert InvalidMilestones();
-        if (bytes(metadataCID).length == 0)               revert EmptyCID();
-        if (dueDate != 0 && dueDate <= block.timestamp)   revert InvalidDueDate();
+        if (token == address(0)) revert ZeroAddress();
+        if (!tokenWhitelist[token]) revert TokenNotWhitelisted();
+        if (milestoneAmounts.length == 0) revert InvalidMilestones();
+        if (bytes(metadataCID).length == 0) revert EmptyCID();
+        if (dueDate != 0 && dueDate <= block.timestamp) revert InvalidDueDate();
 
         uint256 total = 0;
         for (uint256 i = 0; i < milestoneAmounts.length; i++) {
@@ -423,44 +423,54 @@ contract DecimoonV1 is
         string memory ref = _generateRef(++_creatorCount[msg.sender]);
 
         invoices[id] = Invoice({
-            id:             id,
-            invoiceRef:     ref,
-            metadataCID:    metadataCID,
-            creator:        msg.sender,
-            client:         client,
-            token:          token,
-            amount:         total,
-            dueDate:        dueDate,
-            status:         Status.Unpaid,
-            invoiceType:    InvoiceType.Milestone,
-            lateFeesBps:    0,
-            interval:       Interval.None,
-            nextDueDate:    0,
-            totalCollected:     0,
+            id: id,
+            invoiceRef: ref,
+            metadataCID: metadataCID,
+            creator: msg.sender,
+            client: client,
+            token: token,
+            amount: total,
+            dueDate: dueDate,
+            status: Status.Unpaid,
+            invoiceType: InvoiceType.Milestone,
+            lateFeesBps: 0,
+            interval: Interval.None,
+            nextDueDate: 0,
+            totalCollected: 0,
             milestonesReleased: 0,
-            createdAt:          block.timestamp,
-            paidAt:             0,
-            disputeReason:      ""
+            createdAt: block.timestamp,
+            paidAt: 0,
+            disputeReason: ""
         });
 
         for (uint256 i = 0; i < milestoneAmounts.length; i++) {
-            _milestones[id].push(Milestone({
-                amount:     milestoneAmounts[i],
-                released:   false,
-                releasedAt: 0
-            }));
+            _milestones[id].push(
+                Milestone({
+                    amount: milestoneAmounts[i],
+                    released: false,
+                    releasedAt: 0
+                })
+            );
         }
 
         _creatorInvoices[msg.sender].push(id);
         if (client != address(0)) _clientInvoices[client].push(id);
 
         emit InvoiceCreated(
-            id, msg.sender, client, ref, metadataCID,
-            token, total, dueDate, InvoiceType.Milestone, Interval.None
+            id,
+            msg.sender,
+            client,
+            ref,
+            metadataCID,
+            token,
+            total,
+            dueDate,
+            InvoiceType.Milestone,
+            Interval.None
         );
     }
 
-     // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────
     //  Pay: Standard / Recurring
     // ─────────────────────────────────────────────
 
@@ -474,10 +484,11 @@ contract DecimoonV1 is
     function payInvoice(uint256 id) external nonReentrant invoiceExists(id) {
         Invoice storage inv = invoices[id];
 
-        if (inv.invoiceType == InvoiceType.Milestone) revert NotStandardOrRecurring();
-        if (inv.status == Status.Paid)                revert AlreadyPaid();
-        if (inv.status == Status.Cancelled)           revert AlreadyCancelled();
-        if (inv.status == Status.Disputed)            revert AlreadyDisputed();
+        if (inv.invoiceType == InvoiceType.Milestone)
+            revert NotStandardOrRecurring();
+        if (inv.status == Status.Paid) revert AlreadyPaid();
+        if (inv.status == Status.Cancelled) revert AlreadyCancelled();
+        if (inv.status == Status.Disputed) revert AlreadyDisputed();
         if (inv.client != address(0) && inv.client != msg.sender)
             revert WrongClient();
 
@@ -505,14 +516,14 @@ contract DecimoonV1 is
         // Late fees go fully to creator — client is not double-penalised.
         // Client pays: inv.amount + platformFee + lateFee
         // Creator gets: inv.amount + lateFee (full invoiced amount + late penalty)
-        uint256 fee           = (inv.amount * platformFeeBps) / 10_000;
+        uint256 fee = (inv.amount * platformFeeBps) / 10_000;
         uint256 creatorAmount = inv.amount + lateFee;
 
         // Cache values needed after transfer before any state changes
-        address creator     = inv.creator;
-        address tokenAddr   = inv.token;
-        bool    isRecurring = inv.invoiceType == InvoiceType.Recurring;
-        uint256 nextDue     = isRecurring
+        address creator = inv.creator;
+        address tokenAddr = inv.token;
+        bool isRecurring = inv.invoiceType == InvoiceType.Recurring;
+        uint256 nextDue = isRecurring
             ? _nextDueDate(inv.nextDueDate, inv.interval)
             : 0;
 
@@ -527,9 +538,9 @@ contract DecimoonV1 is
 
         if (isRecurring) {
             inv.nextDueDate = nextDue;
-            inv.dueDate     = nextDue;
-            inv.status      = Status.Unpaid;
-            inv.paidAt      = block.timestamp;
+            inv.dueDate = nextDue;
+            inv.status = Status.Unpaid;
+            inv.paidAt = block.timestamp;
             emit RecurringRenewed(id, nextDue, inv.totalCollected);
         } else {
             inv.status = Status.Paid;
@@ -537,14 +548,17 @@ contract DecimoonV1 is
         }
 
         emit InvoicePaid(
-            id, msg.sender, inv.amount,
-            fee, lateFee, creatorAmount,
+            id,
+            msg.sender,
+            inv.amount,
+            fee,
+            lateFee,
+            creatorAmount,
             block.timestamp
         );
     }
 
-
- // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────
     //  Pay: Milestone
     // ─────────────────────────────────────────────
 
@@ -558,9 +572,10 @@ contract DecimoonV1 is
     ) external nonReentrant invoiceExists(invoiceId) {
         Invoice storage inv = invoices[invoiceId];
 
-        if (inv.invoiceType != InvoiceType.Milestone) revert NotMilestoneInvoice();
-        if (inv.status == Status.Cancelled)           revert AlreadyCancelled();
-        if (inv.status == Status.Disputed)            revert AlreadyDisputed();
+        if (inv.invoiceType != InvoiceType.Milestone)
+            revert NotMilestoneInvoice();
+        if (inv.status == Status.Cancelled) revert AlreadyCancelled();
+        if (inv.status == Status.Disputed) revert AlreadyDisputed();
         if (inv.client != address(0) && inv.client != msg.sender)
             revert WrongClient();
 
@@ -573,14 +588,14 @@ contract DecimoonV1 is
         // Option B: platform fee added ON TOP — creator receives full milestone amount.
         // Client pays: m.amount + platformFee
         // Creator gets: m.amount (full milestone amount)
-        uint256 fee           = (m.amount * platformFeeBps) / 10_000;
+        uint256 fee = (m.amount * platformFeeBps) / 10_000;
         uint256 creatorAmount = m.amount;
-        uint256 milestoneAmt  = m.amount; // cache before state changes
+        uint256 milestoneAmt = m.amount; // cache before state changes
 
         // Cache addresses before state changes
-        address creator   = inv.creator;
+        address creator = inv.creator;
         address tokenAddr = inv.token;
-        uint256 msLength  = ms.length;
+        uint256 msLength = ms.length;
 
         // ── INTERACTIONS first (CEI) ──────────────────────────────────────
         IERC20 token = IERC20(tokenAddr);
@@ -588,9 +603,9 @@ contract DecimoonV1 is
         if (fee > 0) token.safeTransferFrom(msg.sender, feeRecipient, fee);
 
         // ── EFFECTS after confirmed transfers ─────────────────────────────
-        m.released              = true;
-        m.releasedAt            = block.timestamp;
-        inv.totalCollected     += milestoneAmt;
+        m.released = true;
+        m.releasedAt = block.timestamp;
+        inv.totalCollected += milestoneAmt;
         inv.milestonesReleased += 1;
 
         // O(1) completion check — no loop needed
@@ -600,8 +615,11 @@ contract DecimoonV1 is
         }
 
         emit MilestoneReleased(
-            invoiceId, milestoneIndex,
-            milestoneAmt, fee, creatorAmount,
+            invoiceId,
+            milestoneIndex,
+            milestoneAmt,
+            fee,
+            creatorAmount,
             block.timestamp
         );
     }
@@ -614,7 +632,7 @@ contract DecimoonV1 is
         uint256 id
     ) external invoiceExists(id) onlyCreator(id) {
         Invoice storage inv = invoices[id];
-        if (inv.status == Status.Paid)      revert AlreadyPaid();
+        if (inv.status == Status.Paid) revert AlreadyPaid();
         if (inv.status == Status.Cancelled) revert AlreadyCancelled();
         inv.status = Status.Cancelled;
         emit InvoiceCancelled(id, msg.sender);
@@ -629,31 +647,29 @@ contract DecimoonV1 is
         string calldata reason
     ) external invoiceExists(id) onlyParty(id) {
         Invoice storage inv = invoices[id];
-        if (inv.status == Status.Paid)      revert AlreadyPaid();
+        if (inv.status == Status.Paid) revert AlreadyPaid();
         if (inv.status == Status.Cancelled) revert AlreadyCancelled();
-        if (inv.status == Status.Disputed)  revert AlreadyDisputed();
-        inv.status        = Status.Disputed;
+        if (inv.status == Status.Disputed) revert AlreadyDisputed();
+        inv.status = Status.Disputed;
         inv.disputeReason = reason;
         emit InvoiceDisputed(id, msg.sender, reason);
     }
 
-     /**
+    /**
      * @notice Resolve a dispute. Owner only.
      *         Owner has full control over dispute resolution.
      *         Resets status to Unpaid so payment can proceed.
      *         Owner may also cancel the invoice after resolving if needed.
      */
-    function resolveDispute(
-        uint256 id
-    ) external onlyOwner invoiceExists(id) {
+    function resolveDispute(uint256 id) external onlyOwner invoiceExists(id) {
         Invoice storage inv = invoices[id];
         if (inv.status != Status.Disputed) revert NotDisputed();
-        inv.status        = Status.Unpaid;
+        inv.status = Status.Unpaid;
         inv.disputeReason = "";
         emit DisputeResolved(id);
     }
 
- // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────
     //  Mark Overdue
     // ─────────────────────────────────────────────
 
@@ -677,14 +693,14 @@ contract DecimoonV1 is
         string calldata newCID
     ) external invoiceExists(id) onlyCreator(id) {
         Invoice storage inv = invoices[id];
-        if (inv.status == Status.Paid)      revert AlreadyPaid();
+        if (inv.status == Status.Paid) revert AlreadyPaid();
         if (inv.status == Status.Cancelled) revert AlreadyCancelled();
-        if (bytes(newCID).length == 0)      revert EmptyCID();
+        if (bytes(newCID).length == 0) revert EmptyCID();
         inv.metadataCID = newCID;
         emit MetadataUpdated(id, newCID);
     }
 
-// ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────
     //  Views
     // ─────────────────────────────────────────────
 
@@ -694,8 +710,7 @@ contract DecimoonV1 is
         return invoices[id];
     }
 
-
- function getMilestones(
+    function getMilestones(
         uint256 id
     ) external view invoiceExists(id) returns (Milestone[] memory) {
         return _milestones[id];
@@ -707,7 +722,7 @@ contract DecimoonV1 is
         return _creatorInvoices[creator];
     }
 
-function getClientInvoices(
+    function getClientInvoices(
         address client
     ) external view returns (uint256[] memory) {
         return _clientInvoices[client];
@@ -715,7 +730,7 @@ function getClientInvoices(
 
     function getInvoicesByStatus(
         address creator,
-        Status  status
+        Status status
     ) external view returns (uint256[] memory) {
         uint256[] storage ids = _creatorInvoices[creator];
         uint256 count = 0;
@@ -746,18 +761,23 @@ function getClientInvoices(
      */
     function calculateTotalDue(
         uint256 id
-    ) external view invoiceExists(id) returns (
-        uint256 principal,
-        uint256 lateFee,
-        uint256 daysLate,
-        uint256 platformFee,
-        uint256 creatorReceives,
-        uint256 totalDue
-    ) {
+    )
+        external
+        view
+        invoiceExists(id)
+        returns (
+            uint256 principal,
+            uint256 lateFee,
+            uint256 daysLate,
+            uint256 platformFee,
+            uint256 creatorReceives,
+            uint256 totalDue
+        )
+    {
         Invoice storage inv = invoices[id];
         principal = inv.amount;
-        lateFee   = 0;
-        daysLate  = 0;
+        lateFee = 0;
+        daysLate = 0;
 
         if (
             inv.lateFeesBps > 0 &&
@@ -771,18 +791,17 @@ function getClientInvoices(
         }
 
         // Fee on principal only — late fees fully to creator
-        platformFee     = (principal * platformFeeBps) / 10_000;
+        platformFee = (principal * platformFeeBps) / 10_000;
         creatorReceives = principal + lateFee;
-        totalDue        = creatorReceives + platformFee;
+        totalDue = creatorReceives + platformFee;
     }
 
-
-/// @notice Calculate platform fee for a given amount (fee on top).
+    /// @notice Calculate platform fee for a given amount (fee on top).
     ///         creatorReceives = amount (full), clientPays = amount + fee
     function calculateFee(
         uint256 amount
     ) external view returns (uint256 fee, uint256 clientPays) {
-        fee        = (amount * platformFeeBps) / 10_000;
+        fee = (amount * platformFeeBps) / 10_000;
         clientPays = amount + fee;
     }
 
@@ -814,7 +833,7 @@ function getClientInvoices(
         totalDue = inv.amount + lateFee + platformFee;
     }
 
- /**
+    /**
      * @notice Returns the exact token amount the client must approve
      *         before calling releaseMilestone().
      * @param invoiceId      The invoice ID.
@@ -826,7 +845,7 @@ function getClientInvoices(
     ) external view invoiceExists(invoiceId) returns (uint256 totalDue) {
         Milestone[] storage ms = _milestones[invoiceId];
         if (milestoneIndex >= ms.length) revert MilestoneOutOfBounds();
-        uint256 amount      = ms[milestoneIndex].amount;
+        uint256 amount = ms[milestoneIndex].amount;
         uint256 platformFee = (amount * platformFeeBps) / 10_000;
         totalDue = amount + platformFee;
     }
@@ -837,11 +856,10 @@ function getClientInvoices(
 
     /// @notice Returns the current implementation address.
     function implementation() external view returns (address) {
-        return _getImplementation();
+        return ERC1967Utils.getImplementation();
     }
 
-
-// ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────
     //  Admin
     // ─────────────────────────────────────────────
 
@@ -867,10 +885,7 @@ function getClientInvoices(
         feeRecipient = newRecipient;
     }
 
-    function setTokenWhitelist(
-        address token,
-        bool    status
-    ) external onlyOwner {
+    function setTokenWhitelist(address token, bool status) external onlyOwner {
         if (token == address(0)) revert ZeroAddress();
         tokenWhitelist[token] = status;
         emit TokenWhitelisted(token, status);
@@ -881,21 +896,19 @@ function getClientInvoices(
     // ─────────────────────────────────────────────
 
     function _nextDueDate(
-        uint256  from,
+        uint256 from,
         Interval interval
     ) internal pure returns (uint256) {
-        if (interval == Interval.Weekly)   return from + 7 days;
+        if (interval == Interval.Weekly) return from + 7 days;
         if (interval == Interval.Biweekly) return from + 14 days;
-        if (interval == Interval.Monthly)  return from + 30 days;
+        if (interval == Interval.Monthly) return from + 30 days;
         return 0;
     }
 
-    function _generateRef(
-        uint256 count
-    ) internal pure returns (string memory) {
+    function _generateRef(uint256 count) internal pure returns (string memory) {
         string memory num = _uintToString(count);
-        if      (count < 10)  num = string(abi.encodePacked("00", num));
-        else if (count < 100) num = string(abi.encodePacked("0",  num));
+        if (count < 10) num = string(abi.encodePacked("00", num));
+        else if (count < 100) num = string(abi.encodePacked("0", num));
         return string(abi.encodePacked("INV-", num));
     }
 
@@ -903,9 +916,12 @@ function getClientInvoices(
         uint256 value
     ) internal pure returns (string memory) {
         if (value == 0) return "0";
-        uint256 temp   = value;
+        uint256 temp = value;
         uint256 digits = 0;
-        while (temp != 0) { digits++; temp /= 10; }
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
         bytes memory buf = new bytes(digits);
         while (value != 0) {
             digits--;
@@ -914,6 +930,4 @@ function getClientInvoices(
         }
         return string(buf);
     }
-
-
 }

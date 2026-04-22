@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("@nomicfoundation/hardhat-verify");
 require("@openzeppelin/hardhat-upgrades");
 require("dotenv").config();
 
@@ -7,7 +8,6 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 if (!PRIVATE_KEY) {
   throw new Error("PRIVATE_KEY not set in .env");
 }
-
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -38,6 +38,4 @@ module.exports = {
       chainId: 42220,
     },
   },
-
-  
 };
