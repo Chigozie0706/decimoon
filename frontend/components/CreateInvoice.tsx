@@ -94,3 +94,28 @@ export default function CreateInvoice() {
   const [isPending, setIsPending] = useState(false);
   const [isUploadingIPFS, setIsUploadingIPFS] = useState(false);
   const [step, setStep] = useState<"form" | "uploading" | "confirming">("form");
+
+  const { data: connectorClient } = useConnectorClient({ chainId: CHAIN.id });
+  const walletClient = connectorClient?.extend(walletActions);
+
+  const { isLoading: isConfirming } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  const isSubmitting = isPending || isConfirming || isUploadingIPFS;
+
+
+  //  Calculations 
+  const lineItemTotal = lineItems.reduce((sum, item) => {
+    const price = parseFloat(item.unitPrice) || 0;
+    return sum + item.quantity * price;
+  }, 0);
+
+  const milestoneTotal = milestones.reduce((sum, m) => {
+    return sum + (parseFloat(m.amount) || 0);
+  }, 0);
+
+  const invoiceAmount =
+    invoiceType === "Milestone" ? milestoneTotal : lineItemTotal;
+  const platformFee = invoiceAmount * 0.02;
+  const clientTotal = invoiceAmount + platformFee;
