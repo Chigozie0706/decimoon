@@ -71,3 +71,26 @@ interface MilestoneItem {
 export default function CreateInvoice() {
   const router = useRouter();
   const { address, isMiniPay, isFarcaster } = useWallet();
+
+    //  Form state 
+  const [invoiceType, setInvoiceType] = useState<InvoiceType>("Standard");
+  const [selectedToken, setSelectedToken] = useState<TokenKey>("cUSD");
+  const [title, setTitle] = useState("");
+  const [clientWallet, setClientWallet] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [lateFeesBps, setLateFeesBps] = useState("");
+  const [notes, setNotes] = useState("");
+  const [interval, setInterval] = useState<Interval>("monthly");
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    { description: "", quantity: 1, unitPrice: "" },
+  ]);
+  const [milestones, setMilestones] = useState<MilestoneItem[]>([
+    { description: "", amount: "" },
+  ]);
+
+  //  UI state 
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [isUploadingIPFS, setIsUploadingIPFS] = useState(false);
+  const [step, setStep] = useState<"form" | "uploading" | "confirming">("form");
