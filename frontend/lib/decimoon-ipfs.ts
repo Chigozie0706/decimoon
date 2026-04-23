@@ -113,3 +113,16 @@ export async function fetchMetadataFromIPFS(
  
   return response.json() as Promise<InvoiceMetadata>;
 }
+
+
+export async function prepareAndUploadMetadata(
+  params: Omit<InvoiceMetadata, "version" | "createdAt">
+): Promise<string> {
+  const metadata: InvoiceMetadata = {
+    ...params,
+    version:   "1.0",
+    createdAt: new Date().toISOString(),
+  };
+ 
+  return uploadMetadataToPinata(metadata);
+}
