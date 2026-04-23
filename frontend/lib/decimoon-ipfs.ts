@@ -62,3 +62,13 @@ export async function uploadMetadataToPinata(
     if (!apiKey || !apiSecret) {
     throw new Error("Pinata API keys not configured");
   }
+
+    const body = {
+    pinataContent: metadata,
+    pinataMetadata: {
+      name: `decimoon-invoice-${metadata.title}-${Date.now()}`,
+    },
+    pinataOptions: {
+      cidVersion: 1,
+    },
+  };
