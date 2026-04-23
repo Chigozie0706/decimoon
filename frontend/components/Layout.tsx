@@ -2,7 +2,7 @@
 
 import { ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Home, FileText, Receipt, User } from "lucide-react";
+import { Home, Plus, FileText, Receipt, User } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,7 +15,7 @@ export function Layout({ children, showNav = true }: LayoutProps) {
 
   const navItems = [
     { icon: Home, label: "Home", path: "/home" },
-    { icon: FileText, label: "Create", path: "/create-invoice" },
+    { icon: Plus, label: "Create", path: "/create-invoice", isCreate: true },
     { icon: Receipt, label: "Invoices", path: "/recurring-invoice" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
@@ -31,6 +31,24 @@ export function Layout({ children, showNav = true }: LayoutProps) {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.path;
+
+                if (item.isCreate) {
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => router.push(item.path)}
+                      className="flex flex-col items-center gap-1 py-2 px-4 -mt-6 min-w-[60px]"
+                    >
+                      <div className="bg-[#1B4332] rounded-full p-4 shadow-lg">
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-[10px] text-gray-400 mt-1">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                }
+
                 return (
                   <button
                     key={item.path}
