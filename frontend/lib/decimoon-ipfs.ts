@@ -51,3 +51,10 @@ const PINATA_API_URL = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
  * @param metadata  Invoice metadata object
  * @returns         IPFS CID string e.g. "QmXyz..."
  */
+
+
+export async function uploadMetadataToPinata(
+  metadata: InvoiceMetadata
+): Promise<string> {
+  const apiKey    = process.env.NEXT_PUBLIC_PINATA_API_KEY;
+  const apiSecret = process.env.PINATA_API_SECRET;
