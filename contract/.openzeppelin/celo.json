@@ -1,0 +1,413 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [
+    {
+      "address": "0x7908AEa0861A5B949B044826a6DDaA3Ed7e88ab0",
+      "txHash": "0x7bdc303f86fdcce4d9b8f90f58cd575462ffd810e4edcafa95657af64850fbcf",
+      "kind": "uups"
+    }
+  ],
+  "impls": {
+    "467621b87f040fd13735e6f00d254941794b92ff290d1b36cf9333e8b3186237": {
+      "address": "0xcb0276e30245Cfc272a0EC2b88006Cebbe1f58eF",
+      "txHash": "0xbcdc9bca3883b2f0fdb7f5e03a8d57b74f813fb0b81da3e12669a51dc64efc67",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "platformFeeBps",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:130"
+          },
+          {
+            "label": "feeRecipient",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:131"
+          },
+          {
+            "label": "_nextId",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:131"
+          },
+          {
+            "label": "_reentrancyStatus",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_uint256",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:136"
+          },
+          {
+            "label": "invoices",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_mapping(t_uint256,t_struct(Invoice)2566_storage)",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:140"
+          },
+          {
+            "label": "_milestones",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_mapping(t_uint256,t_array(t_struct(Milestone)2526_storage)dyn_storage)",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:142"
+          },
+          {
+            "label": "_creatorInvoices",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:144"
+          },
+          {
+            "label": "_clientInvoices",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:148"
+          },
+          {
+            "label": "_creatorCount",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:150"
+          },
+          {
+            "label": "tokenWhitelist",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:152"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "Decimoon",
+            "src": "contracts/Decimoon.sol:163"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)362_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(Ownable2StepStorage)13_storage": {
+            "label": "struct Ownable2StepUpgradeable.Ownable2StepStorage",
+            "members": [
+              {
+                "label": "_pendingOwner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)68_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_struct(Milestone)2526_storage)dyn_storage": {
+            "label": "struct Decimoon.Milestone[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)dyn_storage": {
+            "label": "uint256[]",
+            "numberOfBytes": "32"
+          },
+          "t_enum(Interval)2518": {
+            "label": "enum Decimoon.Interval",
+            "members": [
+              "None",
+              "Weekly",
+              "Biweekly",
+              "Monthly"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(InvoiceType)2513": {
+            "label": "enum Decimoon.InvoiceType",
+            "members": [
+              "Standard",
+              "Recurring",
+              "Milestone"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_enum(Status)2509": {
+            "label": "enum Decimoon.Status",
+            "members": [
+              "Unpaid",
+              "Paid",
+              "Cancelled",
+              "Overdue",
+              "Disputed"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_array(t_uint256)dyn_storage)": {
+            "label": "mapping(address => uint256[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_array(t_struct(Milestone)2526_storage)dyn_storage)": {
+            "label": "mapping(uint256 => struct Decimoon.Milestone[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Invoice)2566_storage)": {
+            "label": "mapping(uint256 => struct Decimoon.Invoice)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Invoice)2566_storage": {
+            "label": "struct Decimoon.Invoice",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "invoiceRef",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "metadataCID",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "creator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "client",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "token",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "dueDate",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "status",
+                "type": "t_enum(Status)2509",
+                "offset": 0,
+                "slot": "8"
+              },
+              {
+                "label": "invoiceType",
+                "type": "t_enum(InvoiceType)2513",
+                "offset": 1,
+                "slot": "8"
+              },
+              {
+                "label": "lateFeesBps",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "9"
+              },
+              {
+                "label": "interval",
+                "type": "t_enum(Interval)2518",
+                "offset": 0,
+                "slot": "10"
+              },
+              {
+                "label": "nextDueDate",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "11"
+              },
+              {
+                "label": "totalCollected",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "12"
+              },
+              {
+                "label": "milestonesReleased",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "13"
+              },
+              {
+                "label": "createdAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "14"
+              },
+              {
+                "label": "paidAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "15"
+              },
+              {
+                "label": "disputeReason",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "16"
+              }
+            ],
+            "numberOfBytes": "544"
+          },
+          "t_struct(Milestone)2526_storage": {
+            "label": "struct Decimoon.Milestone",
+            "members": [
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "released",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "releasedAt",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              }
+            ],
+            "numberOfBytes": "96"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable2Step": [
+            {
+              "contract": "Ownable2StepUpgradeable",
+              "label": "_pendingOwner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol:29",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

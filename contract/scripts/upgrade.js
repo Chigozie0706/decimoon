@@ -35,7 +35,6 @@ async function main() {
   // throws if you accidentally broke the layout
   const upgraded = await upgrades.upgradeProxy(proxyAddress, NewImpl, {
     kind: "uups",
-    unsafeAllow: ["constructor"],
   });
 
   await upgraded.waitForDeployment();

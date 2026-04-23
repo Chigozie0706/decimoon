@@ -62,7 +62,6 @@ async function main() {
     {
       initializer: "initialize",
       kind: "uups",
-      unsafeAllow: ["constructor"],
     },
   );
 

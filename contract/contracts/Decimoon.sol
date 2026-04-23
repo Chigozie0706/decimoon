@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title Decimoon
@@ -22,12 +21,12 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  *   To upgrade: deploy DecimoonV2, then call upgradeToAndCall(newImpl, "").
  *
  * Dispute resolution:
- *    Owner has full control over dispute resolution.
+ *   Owner has full control over dispute resolution.
  *   This is intentional for V1. A decentralized arbitration
  *   system will be introduced in a future version.
  *
  * Refunds:
- *    Once an invoice is paid, funds are transferred immediately
+ *   Once an invoice is paid, funds are transferred immediately
  *   to the creator. There is no on-chain refund mechanism.
  *   Refunds must be handled off-chain between parties.
  *
@@ -35,12 +34,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  *      existing state variables between upgrades.
  *      __gap reserves slots for future V1 storage additions.
  */
-contract Decimoon is
-    Initializable,
-    ReentrancyGuard,
-    Ownable2StepUpgradeable,
-    UUPSUpgradeable
-{
+contract Decimoon is Initializable, Ownable2StepUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     // ─────────────────────────────────────────────
@@ -114,7 +108,7 @@ contract Decimoon is
 
     // ─────────────────────────────────────────────
     //  Storage
-    //    NEVER remove or reorder these variables.
+    //      NEVER remove or reorder these variables.
     //      Only append new variables ABOVE __gap
     //      when writing V2, V3, etc. Reduce __gap
     //      size by the number of slots you add.
@@ -123,6 +117,11 @@ contract Decimoon is
     uint256 public platformFeeBps;
     address public feeRecipient;
     uint256 private _nextId;
+
+    // ── Reentrancy guard ─────────────────────────────────────────────────────
+    uint256 private _reentrancyStatus;
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
 
     mapping(uint256 => Invoice) public invoices;
     mapping(uint256 => Milestone[]) private _milestones;
@@ -134,7 +133,7 @@ contract Decimoon is
     /// @dev Reserves 50 storage slots for future V1 variables.
     ///      Each new variable added in an upgrade uses one slot.
     ///      Reduce this by 1 per added variable e.g. [49], [48]...
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     // ─────────────────────────────────────────────
     //  Events
@@ -244,6 +243,14 @@ contract Decimoon is
         _;
     }
 
+    modifier nonReentrant() {
+        if (_reentrancyStatus == _ENTERED)
+            revert("ReentrancyGuard: reentrant call");
+        _reentrancyStatus = _ENTERED;
+        _;
+        _reentrancyStatus = _NOT_ENTERED;
+    }
+
     // ─────────────────────────────────────────────
     //  Constructor — disabled for proxy pattern
     // ─────────────────────────────────────────────
@@ -263,11 +270,6 @@ contract Decimoon is
      *                       Pass your wallet or multisig — NOT a factory address.
      * @param _feeRecipient  Address receiving platform fees (can be same as owner).
      * @param _initialTokens Tokens to whitelist at deploy time.
-     *                       Celo mainnet:
-     *                       cUSD  0x765DE816845861e75A25fCA122bb6898B8B1282a
-     *                       cEUR  0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73
-     *                       cKES  0x456a3D042C0DbD3db53D5489e98dFb038553B0d0
-     *                       USDC  0xcebA9300f2b948710d2653dD7B07f33A8B32118C
      */
     function initialize(
         address _initialOwner,
@@ -279,6 +281,7 @@ contract Decimoon is
 
         __Ownable_init(_initialOwner);
         __Ownable2Step_init();
+        _reentrancyStatus = _NOT_ENTERED;
 
         feeRecipient = _feeRecipient;
         platformFeeBps = 200; // 2% — must never exceed MAX_FEE_BPS
@@ -390,16 +393,14 @@ contract Decimoon is
 
     // ─────────────────────────────────────────────
     //  Create: Milestone
-
     /**
-     *         Only amounts on-chain; descriptions in IPFS metadata.
+     *  Only amounts on-chain; descriptions in IPFS metadata.
      * @param client            Payer address.
      * @param token             Whitelisted ERC-20 token.
      * @param dueDate           Overall deadline. 0 = none.
      * @param milestoneAmounts  Per-milestone amounts. At least one required.
      * @param metadataCID       IPFS CID of metadata JSON.
      */
-
     function createMilestoneInvoice(
         address client,
         address token,
