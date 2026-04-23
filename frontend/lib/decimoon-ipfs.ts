@@ -32,3 +32,11 @@ export interface InvoiceMetadata {
   // Milestones (for milestone invoices)
   milestones?:  MilestoneMetadata[];
  
+    // Currency display
+  tokenSymbol:  string; 
+  tokenDecimals: number;  
+ 
+  // Version for future schema changes
+  version:      string;   // "1.0"
+  createdAt:    string;   // ISO date string
+}
