@@ -126,3 +126,16 @@ export async function prepareAndUploadMetadata(
  
   return uploadMetadataToPinata(metadata);
 }
+
+
+//  Total amount helper — computes on-chain `amount` from line items
+
+import { parseUnits } from "viem";
+
+export function computeOnChainAmount(
+  items:    LineItem[],
+  decimals: number
+): bigint {
+  const total = items.reduce((sum, item) => sum + parseFloat(item.total), 0);
+  return parseUnits(total.toFixed(decimals > 6 ? 6 : decimals), decimals);
+}
