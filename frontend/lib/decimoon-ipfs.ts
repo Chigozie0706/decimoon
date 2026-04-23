@@ -16,9 +16,9 @@ export interface MilestoneMetadata {
 
 export interface InvoiceMetadata {
   // Parties
-  sellerName:   string;
+  sellerName?:   string;
   sellerEmail?: string;
-  clientName:   string;
+  clientName?:   string;
   clientEmail?: string;
 
     // Invoice details
