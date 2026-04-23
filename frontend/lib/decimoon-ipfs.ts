@@ -9,3 +9,7 @@ export interface LineItem {
   total:       string;   // quantity * unitPrice e.g. "500"
 }
 
+export interface MilestoneMetadata {
+  index:       number;   
+  description: string;    
+}
