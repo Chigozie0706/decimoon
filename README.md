@@ -87,7 +87,7 @@ Then in MiniPay:
 
 **Contract:** `Decimoon.sol`
 
-**Deployed address (Mainnet):** `0x0f42F76C461f2F403bd797Ca8a023686dc8B4753`
+**Deployed address (Mainnet):** `0x7908AEa0861A5B949B044826a6DDaA3Ed7e88ab0`
 
 ### Key functions
 

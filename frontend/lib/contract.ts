@@ -8,7 +8,7 @@ export const CHAIN = IS_TESTNET ? celoSepolia : celo;
 export const ABI = contractAbi.abi as Abi;
 
 export const CONTRACT_ADDRESS =
-  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
+  "0x7908AEa0861A5B949B044826a6DDaA3Ed7e88ab0" as `0x${string}`;
 
 export const USDM_SEPOLIA =
   "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;

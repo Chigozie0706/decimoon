@@ -20,7 +20,7 @@ import contractAbi from "@/contract/abi.json";
 
 const CHAIN = celo;
 const CONTRACT_ADDRESS =
-  "0x0f42F76C461f2F403bd797Ca8a023686dc8B4753" as `0x${string}`;
+  "0x7908AEa0861A5B949B044826a6DDaA3Ed7e88ab0" as `0x${string}`;
 
 export default function InvoiceCreated() {
   const { id } = useParams();
