@@ -43,3 +43,11 @@ export interface InvoiceMetadata {
 
 
 const PINATA_API_URL = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
+
+/**
+ * Upload invoice metadata to IPFS via Pinata.
+ * Returns the CID to store on-chain in metadataCID.
+ *
+ * @param metadata  Invoice metadata object
+ * @returns         IPFS CID string e.g. "QmXyz..."
+ */
