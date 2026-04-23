@@ -40,3 +40,6 @@ export interface InvoiceMetadata {
   version:      string;   // "1.0"
   createdAt:    string;   // ISO date string
 }
+
+
+const PINATA_API_URL = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
