@@ -91,3 +91,10 @@ export async function uploadMetadataToPinata(
   const data = await response.json();
   return data.IpfsHash as string;
 }
+
+/**
+ * Fetch invoice metadata from IPFS via Pinata gateway.
+ *
+ * @param cid  IPFS CID stored on-chain
+ * @returns    Parsed InvoiceMetadata object
+ */
