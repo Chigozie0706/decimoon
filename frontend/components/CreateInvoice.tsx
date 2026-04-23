@@ -157,3 +157,160 @@ export default function CreateInvoice() {
     setMilestones(
       milestones.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)),
     );
+
+
+    const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!address) {
+      setError(
+        isMiniPay
+          ? "Wallet not connected. Please restart MiniPay."
+          : isFarcaster
+            ? "Wallet not connected. Please restart the Farcaster app."
+            : "No wallet detected.",
+      );
+      return;
+    }
+
+    if (!walletClient) {
+      setError("Wallet client not ready. Please try again.");
+      return;
+    }
+
+    // Validate
+    if (!title.trim()) {
+      setError("Title is required.");
+      return;
+    }
+    if (!clientWallet.trim()) {
+      setError("Client wallet address is required.");
+      return;
+    }
+    if (invoiceAmount <= 0) {
+      setError("Invoice amount must be greater than 0.");
+      return;
+    }
+    if (!dueDate && invoiceType !== "Milestone") {
+      setError("Due date is required.");
+      return;
+    }
+
+    if (invoiceType === "Milestone") {
+      if (milestones.some((m) => !m.description.trim() || !m.amount)) {
+        setError("All milestone phases require a description and amount.");
+        return;
+      }
+    } else {
+      if (
+        lineItems.some((item) => !item.description.trim() || !item.unitPrice)
+      ) {
+        setError("All line items require a description and price.");
+        return;
+      }
+    }
+
+    setIsPending(true);
+
+    try {
+      //  Step 1: Upload metadata to IPFS 
+      setStep("uploading");
+      setIsUploadingIPFS(true);
+
+      const token = TOKENS[selectedToken];
+
+      const metadataCID = await prepareAndUploadMetadata({
+        title: title.trim(),
+        tokenSymbol: selectedToken,
+        tokenDecimals: token.decimals,
+        notes: notes.trim() || undefined,
+        ...(invoiceType === "Milestone"
+          ? {
+              milestones: milestones.map((m, i) => ({
+                index: i,
+                description: m.description.trim(),
+              })),
+            }
+          : {
+              items: lineItems.map((item) => ({
+                name: item.description.trim(),
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                total: (item.quantity * parseFloat(item.unitPrice)).toFixed(
+                  token.decimals > 6 ? 6 : token.decimals,
+                ),
+              })),
+            }),
+      });
+
+      setIsUploadingIPFS(false);
+      setStep("confirming");
+
+      //  Step 2: Build contract args 
+      const dueDateTimestamp = dueDate
+        ? BigInt(Math.floor(new Date(dueDate).getTime() / 1000))
+        : BigInt(0);
+
+      const lateFeesBpsValue = lateFeesBps
+        ? BigInt(Math.round(parseFloat(lateFeesBps) * 100)) // e.g. 0.5% → 50 bps
+        : BigInt(0);
+
+      //  Step 3: Call contract 
+      let hash: `0x${string}`;
+
+      if (invoiceType === "Milestone") {
+        const milestoneAmounts = milestones.map((m) =>
+          parseUnits(m.amount, token.decimals),
+        );
+
+        hash = await walletClient.writeContract({
+          address: CONTRACT_ADDRESS,
+          abi: contractAbi.abi,
+          functionName: "createMilestoneInvoice",
+          args: [
+            clientWallet as `0x${string}`, // client
+            token.address, // token
+            dueDateTimestamp, // dueDate (0 = none for milestone)
+            milestoneAmounts, // milestoneAmounts[]
+            metadataCID, // metadataCID
+          ],
+          chain: CHAIN,
+          account: address,
+        });
+      } else {
+        const amountInUnits = parseUnits(
+          invoiceAmount.toFixed(token.decimals > 6 ? 6 : token.decimals),
+          token.decimals,
+        );
+
+        hash = await walletClient.writeContract({
+          address: CONTRACT_ADDRESS,
+          abi: contractAbi.abi,
+          functionName: "createInvoice",
+          args: [
+            clientWallet as `0x${string}`, // client
+            token.address, // token
+            amountInUnits, // amount
+            dueDateTimestamp, // dueDate
+            lateFeesBpsValue, // lateFeesBps
+            invoiceType === "Recurring", // isRecurring
+            BigInt(invoiceType === "Recurring" ? INTERVAL_MAP[interval] : 0), // interval (0 = None for Standard)
+            metadataCID, // metadataCID
+          ],
+          chain: CHAIN,
+          account: address,
+        });
+      }
+
+      setTxHash(hash);
+      router.push(`/invoice-created/${hash}`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.shortMessage ?? err?.message ?? "Transaction failed");
+      setStep("form");
+    } finally {
+      setIsPending(false);
+      setIsUploadingIPFS(false);
+    }
+  };
