@@ -44,3 +44,14 @@ const TOKENS = {
     color: "bg-blue-50 text-blue-600",
   },
 } as const;
+
+type TokenKey = keyof typeof TOKENS;
+type InvoiceType = "Standard" | "Recurring" | "Milestone";
+type Interval = "weekly" | "biweekly" | "monthly";
+
+// Interval enum matches contract: None=0, Weekly=1, Biweekly=2, Monthly=3
+const INTERVAL_MAP: Record<Interval, number> = {
+  weekly: 1,
+  biweekly: 2,
+  monthly: 3,
+};
