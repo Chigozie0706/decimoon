@@ -132,6 +132,14 @@ export async function prepareAndUploadMetadata(
 
 import { parseUnits } from "viem";
 
+/**
+ * Compute the total amount to pass to createInvoice() on-chain.
+ * Sums all line item totals and converts to token units.
+ *
+ * @param items     Line items from the form
+ * @param decimals  Token decimals (18 for cUSD, 6 for USDC)
+ * @returns         BigInt amount in token smallest unit
+ */
 export function computeOnChainAmount(
   items:    LineItem[],
   decimals: number
@@ -139,3 +147,47 @@ export function computeOnChainAmount(
   const total = items.reduce((sum, item) => sum + parseFloat(item.total), 0);
   return parseUnits(total.toFixed(decimals > 6 ? 6 : decimals), decimals);
 }
+
+
+/**
+ * Compute milestone amounts array to pass to createMilestoneInvoice().
+ *
+ * @param amounts   Human-readable amounts per milestone e.g. ["300", "200", "500"]
+ * @param decimals  Token decimals
+ * @returns         Array of BigInts in token smallest unit
+ */
+
+export function computeMilestoneAmounts(
+  amounts:  string[],
+  decimals: number
+): bigint[] {
+  return amounts.map((a) => parseUnits(a, decimals));
+}
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
