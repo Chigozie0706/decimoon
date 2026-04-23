@@ -72,3 +72,22 @@ export async function uploadMetadataToPinata(
       cidVersion: 1,
     },
   };
+
+  const response = await fetch(PINATA_API_URL, {
+    method:  "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      pinata_api_key:        apiKey,
+      pinata_secret_api_key: apiSecret,
+    },
+    body: JSON.stringify(body),
+  });
+ 
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Pinata upload failed: ${error}`);
+  }
+ 
+  const data = await response.json();
+  return data.IpfsHash as string;
+}
