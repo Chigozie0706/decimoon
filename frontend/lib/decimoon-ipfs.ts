@@ -25,3 +25,10 @@ export interface InvoiceMetadata {
   title:        string;
   notes?:       string;   // terms, thank you note, etc.
   logoUrl?:     string;   // optional: IPFS URL of logo image
+
+  // Line items (for standard / recurring)
+  items?:       LineItem[];
+ 
+  // Milestones (for milestone invoices)
+  milestones?:  MilestoneMetadata[];
+ 
