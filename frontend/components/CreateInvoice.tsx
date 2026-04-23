@@ -67,12 +67,11 @@ interface MilestoneItem {
   amount: string;
 }
 
-
 export default function CreateInvoice() {
   const router = useRouter();
   const { address, isMiniPay, isFarcaster } = useWallet();
 
-    //  Form state 
+  //  Form state
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("Standard");
   const [selectedToken, setSelectedToken] = useState<TokenKey>("cUSD");
   const [title, setTitle] = useState("");
@@ -88,7 +87,7 @@ export default function CreateInvoice() {
     { description: "", amount: "" },
   ]);
 
-  //  UI state 
+  //  UI state
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -104,8 +103,7 @@ export default function CreateInvoice() {
 
   const isSubmitting = isPending || isConfirming || isUploadingIPFS;
 
-
-  //  Calculations 
+  //  Calculations
   const lineItemTotal = lineItems.reduce((sum, item) => {
     const price = parseFloat(item.unitPrice) || 0;
     return sum + item.quantity * price;
@@ -120,8 +118,7 @@ export default function CreateInvoice() {
   const platformFee = invoiceAmount * 0.02;
   const clientTotal = invoiceAmount + platformFee;
 
-
-  //  Line item helpers 
+  //  Line item helpers
   const addLineItem = () =>
     setLineItems([
       ...lineItems,
@@ -142,7 +139,7 @@ export default function CreateInvoice() {
       ),
     );
 
-     // Milestone helpers 
+  // Milestone helpers
   const addMilestone = () =>
     setMilestones([...milestones, { description: "", amount: "" }]);
 
@@ -158,8 +155,7 @@ export default function CreateInvoice() {
       milestones.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)),
     );
 
-
-    const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -214,7 +210,7 @@ export default function CreateInvoice() {
     setIsPending(true);
 
     try {
-      //  Step 1: Upload metadata to IPFS 
+      //  Step 1: Upload metadata to IPFS
       setStep("uploading");
       setIsUploadingIPFS(true);
 
@@ -247,7 +243,7 @@ export default function CreateInvoice() {
       setIsUploadingIPFS(false);
       setStep("confirming");
 
-      //  Step 2: Build contract args 
+      //  Step 2: Build contract args
       const dueDateTimestamp = dueDate
         ? BigInt(Math.floor(new Date(dueDate).getTime() / 1000))
         : BigInt(0);
@@ -256,7 +252,7 @@ export default function CreateInvoice() {
         ? BigInt(Math.round(parseFloat(lateFeesBps) * 100)) // e.g. 0.5% → 50 bps
         : BigInt(0);
 
-      //  Step 3: Call contract 
+      //  Step 3: Call contract
       let hash: `0x${string}`;
 
       if (invoiceType === "Milestone") {
@@ -352,7 +348,7 @@ export default function CreateInvoice() {
             </div>
           </div>
 
- {/*  Title  */}
+          {/*  Title  */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Invoice Title
@@ -722,3 +718,27 @@ export default function CreateInvoice() {
               on-chain.
             </div>
           )}
+
+          {/* ── Submit button ─────────────────────────────────────────────── */}
+          <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100">
+            <button
+              type="submit"
+              disabled={
+                isSubmitting || !address || !walletClient || invoiceAmount <= 0
+              }
+              className="w-full bg-[#1B4332] text-white py-4 rounded-xl font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUploadingIPFS
+                ? "Uploading to IPFS..."
+                : isPending
+                  ? "Confirm in wallet..."
+                  : isConfirming
+                    ? "Confirming on-chain..."
+                    : "Create Invoice"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </Layout>
+  );
+}
