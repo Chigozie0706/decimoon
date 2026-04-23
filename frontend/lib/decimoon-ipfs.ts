@@ -58,3 +58,7 @@ export async function uploadMetadataToPinata(
 ): Promise<string> {
   const apiKey    = process.env.NEXT_PUBLIC_PINATA_API_KEY;
   const apiSecret = process.env.PINATA_API_SECRET;
+
+    if (!apiKey || !apiSecret) {
+    throw new Error("Pinata API keys not configured");
+  }
