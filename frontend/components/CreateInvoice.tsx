@@ -119,3 +119,25 @@ export default function CreateInvoice() {
     invoiceType === "Milestone" ? milestoneTotal : lineItemTotal;
   const platformFee = invoiceAmount * 0.02;
   const clientTotal = invoiceAmount + platformFee;
+
+
+  //  Line item helpers 
+  const addLineItem = () =>
+    setLineItems([
+      ...lineItems,
+      { description: "", quantity: 1, unitPrice: "" },
+    ]);
+
+  const removeLineItem = (i: number) =>
+    setLineItems(lineItems.filter((_, idx) => idx !== i));
+
+  const updateLineItem = (
+    i: number,
+    field: keyof LineItem,
+    value: string | number,
+  ) =>
+    setLineItems(
+      lineItems.map((item, idx) =>
+        idx === i ? { ...item, [field]: value } : item,
+      ),
+    );
