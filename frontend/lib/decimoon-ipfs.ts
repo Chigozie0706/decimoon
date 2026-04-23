@@ -98,3 +98,18 @@ export async function uploadMetadataToPinata(
  * @param cid  IPFS CID stored on-chain
  * @returns    Parsed InvoiceMetadata object
  */
+
+
+export async function fetchMetadataFromIPFS(
+  cid: string
+): Promise<InvoiceMetadata> {
+  const gateway = process.env.NEXT_PUBLIC_PINATA_GATEWAY ?? "https://gateway.pinata.cloud";
+  const url     = `${gateway}/ipfs/${cid}`;
+ 
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch metadata for CID: ${cid}`);
+  }
+ 
+  return response.json() as Promise<InvoiceMetadata>;
+}
