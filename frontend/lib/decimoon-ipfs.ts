@@ -20,3 +20,8 @@ export interface InvoiceMetadata {
   sellerEmail?: string;
   clientName:   string;
   clientEmail?: string;
+
+    // Invoice details
+  title:        string;
+  notes?:       string;   // terms, thank you note, etc.
+  logoUrl?:     string;   // optional: IPFS URL of logo image
