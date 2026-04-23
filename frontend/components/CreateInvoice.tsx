@@ -66,3 +66,8 @@ interface MilestoneItem {
   description: string;
   amount: string;
 }
+
+
+export default function CreateInvoice() {
+  const router = useRouter();
+  const { address, isMiniPay, isFarcaster } = useWallet();
