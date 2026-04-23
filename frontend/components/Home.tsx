@@ -26,12 +26,17 @@ const CONTRACT_ADDRESS =
   "0x7908AEa0861A5B949B044826a6DDaA3Ed7e88ab0" as `0x${string}`;
 const CHAIN = celo;
 
-const STATUS_MAP: Record<number, "unpaid" | "paid" | "overdue"> = {
+const STATUS_MAP: Record<
+  number,
+  "unpaid" | "paid" | "cancelled" | "overdue" | "disputed"
+> = {
   0: "unpaid",
   1: "paid",
-  2: "overdue",
+  2: "cancelled",
   3: "overdue",
+  4: "disputed",
 };
+
 const ABI = contractAbi.abi as Abi;
 
 interface Invoice {
@@ -40,7 +45,7 @@ interface Invoice {
   client: string;
   creator: string;
   amount: number;
-  status: "paid" | "unpaid" | "overdue" | "cancelled"; // ← add cancelled
+  status: "paid" | "unpaid" | "overdue" | "cancelled" | "disputed";
   date: string;
   dueDate: string;
 }

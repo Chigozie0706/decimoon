@@ -25,7 +25,7 @@ export function Badge({
     success: "bg-green-100  text-green-700  border border-green-200",
     warning: "bg-orange-100 text-orange-700 border border-orange-200",
     error: "bg-red-100    text-red-700    border border-red-200",
-    disputed: "bg-purple-100 text-purple-700 border border-purple-200",
+    disputed: "bg-orange-100 text-orange-700 border border-orange-200",
     neutral: "bg-gray-100   text-gray-500   border border-gray-200",
     blue: "bg-blue-100   text-blue-700   border border-blue-200",
     purple: "bg-purple-100 text-purple-700 border border-purple-200",
@@ -51,6 +51,7 @@ export function StatusBadge({
     | "unpaid"
     | "overdue"
     | "cancelled"
+    | "disputed"
     | "Paid"
     | "Unpaid"
     | "Overdue"
@@ -58,12 +59,11 @@ export function StatusBadge({
     | "Cancelled";
 }) {
   const variants: Record<string, BadgeProps["variant"]> = {
-    // lowercase (your convention)
     paid: "success",
     unpaid: "default",
     overdue: "error",
     cancelled: "neutral",
-    // title-case (Figma convention)
+    disputed: "disputed",
     Paid: "success",
     Unpaid: "default",
     Overdue: "error",
@@ -76,6 +76,7 @@ export function StatusBadge({
     unpaid: "Unpaid",
     overdue: "Overdue",
     cancelled: "Cancelled",
+    disputed: "Disputed",
     Paid: "Paid",
     Unpaid: "Unpaid",
     Overdue: "Overdue",
