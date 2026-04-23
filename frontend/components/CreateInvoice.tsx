@@ -314,3 +314,40 @@ export default function CreateInvoice() {
       setIsUploadingIPFS(false);
     }
   };
+
+  return (
+    <Layout>
+      <div className="min-h-screen bg-[#F9FAFB]">
+        {/* Header */}
+        <div className="bg-[#1B4332] px-6 py-6 flex items-center gap-4">
+          <button onClick={() => router.back()} className="text-white">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-white text-xl font-bold">Create Invoice</h1>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 pb-32">
+          {/* ── Invoice Type ─────────────────────────────────────────────── */}
+          <div>
+            <label className="text-sm text-gray-600 mb-2 block font-medium">
+              Invoice Type
+            </label>
+            <div className="flex gap-2">
+              {(["Standard", "Recurring", "Milestone"] as InvoiceType[]).map(
+                (type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setInvoiceType(type)}
+                    className={`flex-1 py-3 rounded-xl border text-sm font-medium transition-colors ${
+                      invoiceType === type
+                        ? "bg-[#1B4332] text-white border-[#1B4332]"
+                        : "bg-white text-gray-600 border-gray-200"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
