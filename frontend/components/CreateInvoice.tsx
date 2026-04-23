@@ -141,3 +141,19 @@ export default function CreateInvoice() {
         idx === i ? { ...item, [field]: value } : item,
       ),
     );
+
+     // Milestone helpers 
+  const addMilestone = () =>
+    setMilestones([...milestones, { description: "", amount: "" }]);
+
+  const removeMilestone = (i: number) =>
+    setMilestones(milestones.filter((_, idx) => idx !== i));
+
+  const updateMilestone = (
+    i: number,
+    field: keyof MilestoneItem,
+    value: string,
+  ) =>
+    setMilestones(
+      milestones.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)),
+    );
