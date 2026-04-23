@@ -55,3 +55,14 @@ const INTERVAL_MAP: Record<Interval, number> = {
   biweekly: 2,
   monthly: 3,
 };
+
+interface LineItem {
+  description: string;
+  quantity: number;
+  unitPrice: string;
+}
+
+interface MilestoneItem {
+  description: string;
+  amount: string;
+}
