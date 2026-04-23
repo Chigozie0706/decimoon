@@ -719,8 +719,9 @@ export default function CreateInvoice() {
             </div>
           )}
 
-          {/* ── Submit button ─────────────────────────────────────────────── */}
-          <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100">
+          {/*  Submit button  */}
+          {/* <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100"> */}
+          <div className="pt-4">
             <button
               type="submit"
               disabled={
