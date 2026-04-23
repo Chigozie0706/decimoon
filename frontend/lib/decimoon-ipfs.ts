@@ -13,3 +13,10 @@ export interface MilestoneMetadata {
   index:       number;   
   description: string;    
 }
+
+export interface InvoiceMetadata {
+  // Parties
+  sellerName:   string;
+  sellerEmail?: string;
+  clientName:   string;
+  clientEmail?: string;
