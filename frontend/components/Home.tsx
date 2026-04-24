@@ -142,7 +142,7 @@ export default function Home() {
   return (
     <Layout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/* ── Header ──────────────────────────────────────────────────── */}
+        {/*  Header ─ */}
         <div className="bg-[#1B4332] px-6 pt-12 pb-8">
           {/* Wallet row */}
           <div className="flex items-center justify-between mb-6">
@@ -194,7 +194,7 @@ export default function Home() {
         </div>
 
         <div className="px-6 py-6 space-y-6">
-          {/* ── To Pay (urgent) ─────────────────────────────────────── */}
+          {/*  To Pay (urgent)  */}
           {toPayInvoices.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
@@ -268,7 +268,7 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* ── Quick Actions ────────────────────────────────────────── */}
+          {/*  Quick Actions  */}
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => router.push("/create-invoice")}
@@ -294,7 +294,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/* ── Stats ───────────────────────────────────────────────── */}
+          {/*  Stats  */}
           <div>
             <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
               Your Invoice Stats
@@ -330,7 +330,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ── Recent Sent ─────────────────────────────────────────── */}
+          {/*  Recent Sent  */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-gray-400 uppercase tracking-wide">
