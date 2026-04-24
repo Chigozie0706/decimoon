@@ -51,7 +51,10 @@ const TOKEN_CONFIG: Record<string, { symbol: string; decimals: number }> = {
 };
 
 //  Status / Type maps ─
-const STATUS_MAP: Record<number, string> = {
+const STATUS_MAP: Record<
+  number,
+  "Unpaid" | "Paid" | "Cancelled" | "Overdue" | "Disputed"
+> = {
   0: "Unpaid",
   1: "Paid",
   2: "Cancelled",
@@ -294,6 +297,7 @@ export default function InvoiceDetail() {
   const tokenKey = inv.token.toLowerCase();
   const tokenInfo = TOKEN_CONFIG[tokenKey] ?? { symbol: "cUSD", decimals: 18 };
   const status = STATUS_MAP[inv.status] ?? "Unpaid";
+
   const invoiceType = INVOICE_TYPE_MAP[inv.invoiceType] ?? "Standard";
 
   const amount = parseFloat(formatUnits(inv.amount, tokenInfo.decimals));
@@ -471,7 +475,7 @@ export default function InvoiceDetail() {
           </div>
           <div className="flex items-center gap-2">
             <TypeBadge type={invoiceType} />
-            {/* <StatusBadge status={status} /> */}
+            <StatusBadge status={status} />
           </div>
         </div>
 
