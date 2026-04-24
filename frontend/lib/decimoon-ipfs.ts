@@ -56,40 +56,19 @@ const PINATA_API_URL = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 export async function uploadMetadataToPinata(
   metadata: InvoiceMetadata
 ): Promise<string> {
-  const apiKey    = process.env.NEXT_PUBLIC_PINATA_API_KEY;
-  const apiSecret = process.env.PINATA_API_SECRET;
-
-    if (!apiKey || !apiSecret) {
-    throw new Error("Pinata API keys not configured");
-  }
-
-    const body = {
-    pinataContent: metadata,
-    pinataMetadata: {
-      name: `decimoon-invoice-${metadata.title}-${Date.now()}`,
-    },
-    pinataOptions: {
-      cidVersion: 1,
-    },
-  };
-
-  const response = await fetch(PINATA_API_URL, {
-    method:  "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      pinata_api_key:        apiKey,
-      pinata_secret_api_key: apiSecret,
-    },
-    body: JSON.stringify(body),
+  const res = await fetch("/api/upload-metadata", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(metadata),
   });
- 
-  if (!response.ok) {
-    const error = await response.text();
+
+  if (!res.ok) {
+    const error = await res.text();
     throw new Error(`Pinata upload failed: ${error}`);
   }
- 
-  const data = await response.json();
-  return data.IpfsHash as string;
+
+  const data = await res.json();
+  return data.cid as string;
 }
 
 /**
