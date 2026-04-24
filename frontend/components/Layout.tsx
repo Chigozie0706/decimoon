@@ -16,7 +16,7 @@ export function Layout({ children, showNav = true }: LayoutProps) {
   const navItems = [
     { icon: Home, label: "Home", path: "/home" },
     { icon: FileText, label: "Create", path: "/create-invoice" },
-    { icon: Receipt, label: "Invoices", path: "/recurring-invoice" },
+    { icon: Receipt, label: "Invoices", path: "/invoices" },
     { icon: User, label: "Profile", path: "/profile" },
   ];
 
