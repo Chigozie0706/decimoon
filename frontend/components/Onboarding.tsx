@@ -29,7 +29,7 @@ export default function Onboarding() {
       emoji: "💰",
       title: "Get paid instantly. No fake alerts.",
       description:
-        "Pay in cUSD, cEUR, cKES or USDC. Every payment recorded on-chain — 100% verifiable.",
+        "Pay in cUSD, cEUR, USDT or USDC. Every payment recorded on-chain — 100% verifiable.",
     },
   ];
 
