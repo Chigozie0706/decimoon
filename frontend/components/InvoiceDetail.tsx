@@ -43,9 +43,9 @@ const TOKEN_CONFIG: Record<string, { symbol: string; decimals: number }> = {
     symbol: "cEUR",
     decimals: 18,
   },
-  "0x456a3d042c0dbd3db53d5489e98dfb038553b0d0": {
-    symbol: "cKES",
-    decimals: 18,
+  "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e": {
+    symbol: "USDT",
+    decimals: 6,
   },
   "0xceba9300f2b948710d2653dd7b07f33a8b32118c": { symbol: "USDC", decimals: 6 },
 };
