@@ -29,7 +29,7 @@ import {
   CONTRACT_ADDRESS,
   ABI,
   CHAIN,
-  FEE_CURRENCY,
+  getFeeCurrency,
   USDM_ABI,
 } from "@/lib/contract";
 
@@ -199,7 +199,7 @@ export default function InvoiceDetail() {
         abi: ABI,
         functionName: "payInvoice",
         args: [invoiceId],
-        feeCurrency: FEE_CURRENCY,
+        feeCurrency: feeCurrency,
         chain: CHAIN,
         account: address,
       })
@@ -295,12 +295,16 @@ export default function InvoiceDetail() {
   const inv = rawInvoice as OnChainInvoice;
 
   const tokenKey = inv.token.toLowerCase();
+
   const tokenInfo = TOKEN_CONFIG[tokenKey] ?? { symbol: "cUSD", decimals: 18 };
   const status = STATUS_MAP[inv.status] ?? "Unpaid";
 
   const invoiceType = INVOICE_TYPE_MAP[inv.invoiceType] ?? "Standard";
 
   const amount = parseFloat(formatUnits(inv.amount, tokenInfo.decimals));
+
+  const feeCurrency = getFeeCurrency(inv.token);
+
   const platformFee = amount * 0.02;
   const clientPays = amount + platformFee; // creator gets full amount
 
@@ -374,7 +378,7 @@ export default function InvoiceDetail() {
         abi: USDM_ABI,
         functionName: "approve",
         args: [CONTRACT_ADDRESS, approvalAmount],
-        feeCurrency: FEE_CURRENCY,
+        feeCurrency: feeCurrency,
         chain: CHAIN,
         account: address,
       });
@@ -406,7 +410,7 @@ export default function InvoiceDetail() {
         abi: ABI,
         functionName: "cancelInvoice",
         args: [invoiceId],
-        feeCurrency: FEE_CURRENCY,
+        feeCurrency: feeCurrency,
         chain: CHAIN,
         account: address,
       });
@@ -441,7 +445,7 @@ export default function InvoiceDetail() {
         abi: ABI,
         functionName: "disputeInvoice",
         args: [invoiceId, disputeReason.trim()],
-        feeCurrency: FEE_CURRENCY,
+        feeCurrency: feeCurrency,
         chain: CHAIN,
         account: address,
       });
