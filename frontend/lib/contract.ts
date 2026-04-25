@@ -30,6 +30,12 @@ export const TOKEN_ADAPTERS: Record<string, `0x${string}`> = {
 };
 
 
+export function getFeeCurrency(tokenAddress: `0x${string}`): `0x${string}` {
+  const adapter = TOKEN_ADAPTERS[tokenAddress.toLowerCase()];
+  return adapter ?? tokenAddress; // fallback to token address for 18-decimal tokens
+}
+
+
 export const USDM_SEPOLIA =
   "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 export const USDM_MAINNET =
