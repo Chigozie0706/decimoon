@@ -31,10 +31,10 @@ const TOKENS = {
     symbol: "cEUR",
     color: "bg-blue-100 text-blue-800",
   },
-  cKES: {
-    address: "0x456a3D042C0DbD3db53D5489e98dFb038553B0d0" as `0x${string}`,
-    decimals: 18,
-    symbol: "cKES",
+  USDT: {
+    address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as `0x${string}`,
+    decimals: 6,
+    symbol: "USDT",
     color: "bg-amber-100 text-amber-800",
   },
   USDC: {
