@@ -36,13 +36,6 @@ export function getFeeCurrency(tokenAddress: `0x${string}`): `0x${string}` {
 }
 
 
-// export const USDM_SEPOLIA =
-//   "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
-// export const USDM_MAINNET =
-//   "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
-// export const USDM_TOKEN = IS_TESTNET ? USDM_SEPOLIA : USDM_MAINNET;
-// export const FEE_CURRENCY = USDM_TOKEN;
-
 export const USDM_ABI = [
   {
     inputs: [
