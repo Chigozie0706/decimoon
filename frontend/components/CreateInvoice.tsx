@@ -429,7 +429,7 @@ export default function CreateInvoice() {
                           onChange={(e) =>
                             updateLineItem(i, "description", e.target.value)
                           }
-                          className="flex-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-sm focus:border-[#1B4332] focus:outline-none"
+                          className="flex-1 px-3 py-2 bg-gray-50  rounded-lg border border-gray-200 text-sm text-gray-600 focus:border-[#1B4332] focus:outline-none"
                         />
                         {lineItems.length > 1 && (
                           <button
@@ -457,7 +457,7 @@ export default function CreateInvoice() {
                                 parseInt(e.target.value) || 1,
                               )
                             }
-                            className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-sm focus:border-[#1B4332] focus:outline-none"
+                            className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                           />
                         </div>
                         <div className="flex-1">
@@ -473,7 +473,7 @@ export default function CreateInvoice() {
                             onChange={(e) =>
                               updateLineItem(i, "unitPrice", e.target.value)
                             }
-                            className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-sm focus:border-[#1B4332] focus:outline-none"
+                            className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                           />
                         </div>
                         <div className="flex-1">
@@ -530,7 +530,7 @@ export default function CreateInvoice() {
                           onChange={(e) =>
                             updateMilestone(i, "description", e.target.value)
                           }
-                          className="flex-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-sm focus:border-[#1B4332] focus:outline-none"
+                          className="flex-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                         />
                         {milestones.length > 1 && (
                           <button
@@ -553,7 +553,7 @@ export default function CreateInvoice() {
                           onChange={(e) =>
                             updateMilestone(i, "amount", e.target.value)
                           }
-                          className="flex-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-sm focus:border-[#1B4332] focus:outline-none"
+                          className="flex-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                         />
                         <span className="text-sm font-medium text-gray-600">
                           {selectedToken}
