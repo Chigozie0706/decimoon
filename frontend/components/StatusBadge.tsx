@@ -95,7 +95,7 @@ export function TokenBadge({ token }: { token: string }) {
   const variants: Record<string, BadgeProps["variant"]> = {
     cUSD: "success",
     cEUR: "blue",
-    cKES: "amber",
+    USDT: "amber",
     USDC: "neutral",
   };
 
