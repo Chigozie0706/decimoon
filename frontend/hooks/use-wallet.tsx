@@ -24,8 +24,7 @@ export function useWallet() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // @ts-ignore
-    const eth = window.ethereum;
+    const eth = (window as any).ethereum;
 
     // MiniPay detection
     if (eth && eth.isMiniPay) {
@@ -34,11 +33,13 @@ export function useWallet() {
       return;
     }
 
-    // Farcaster detection (REAL check)
-    const isFC =
-      typeof window !== "undefined" &&
-      (window.location !== window.parent.location || // iframe
-        navigator.userAgent.toLowerCase().includes("farcaster"));
+    // Farcaster detection (SAFE)
+    let isFC = false;
+    try {
+      isFC = !!sdk?.actions;
+    } catch {
+      isFC = false;
+    }
 
     if (isFC) {
       setIsFarcaster(true);
