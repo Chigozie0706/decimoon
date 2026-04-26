@@ -1,47 +1,43 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Layout } from "./Layout";
-import { ArrowLeft, Plus, Trash2, Calendar, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useWaitForTransactionReceipt, useConnectorClient } from "wagmi";
-import { walletActions, parseUnits, encodeFunctionData } from "viem";
+import { walletActions, parseUnits } from "viem";
 import { celo } from "wagmi/chains";
 import { useWallet } from "@/hooks/use-wallet";
 import contractAbi from "../contract/abi.json";
 import { prepareAndUploadMetadata } from "@/lib/decimoon-ipfs";
 
-// Contract config
+//  Contract config
 const CONTRACT_ADDRESS =
   "0x7908AEa0861A5B949B044826a6DDaA3Ed7e88ab0" as `0x${string}`;
 const CHAIN = celo;
 
-// Supported tokens
+//  Supported tokens
 const TOKENS = {
   cUSD: {
     address: "0x765DE816845861e75A25fCA122bb6898B8B1282a" as `0x${string}`,
     decimals: 18,
     symbol: "cUSD",
-    color: "bg-green-100 text-green-800",
   },
   cEUR: {
     address: "0xD8763CBa276a3738E6DE85b4b3bF5FDed6D6cA73" as `0x${string}`,
     decimals: 18,
     symbol: "cEUR",
-    color: "bg-blue-100 text-blue-800",
   },
   USDT: {
     address: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as `0x${string}`,
     decimals: 6,
     symbol: "USDT",
-    color: "bg-amber-100 text-amber-800",
   },
   USDC: {
     address: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C" as `0x${string}`,
     decimals: 6,
     symbol: "USDC",
-    color: "bg-blue-50 text-blue-600",
   },
 } as const;
 
@@ -49,7 +45,6 @@ type TokenKey = keyof typeof TOKENS;
 type InvoiceType = "Standard" | "Recurring" | "Milestone";
 type Interval = "weekly" | "biweekly" | "monthly";
 
-// Interval enum matches contract: None=0, Weekly=1, Biweekly=2, Monthly=3
 const INTERVAL_MAP: Record<Interval, number> = {
   weekly: 1,
   biweekly: 2,
@@ -58,7 +53,7 @@ const INTERVAL_MAP: Record<Interval, number> = {
 
 interface LineItem {
   description: string;
-  quantity: number;
+  quantity: string;
   unitPrice: string;
 }
 
@@ -67,11 +62,22 @@ interface MilestoneItem {
   amount: string;
 }
 
+//  Helpers
+function parseNum(v: string): number {
+  const n = parseFloat(v);
+  return isNaN(n) || n < 0 ? 0 : n;
+}
+
+function lineItemTotal(item: LineItem): number {
+  return parseNum(item.quantity) * parseNum(item.unitPrice);
+}
+
+//  Component
 export default function CreateInvoice() {
   const router = useRouter();
   const { address, isMiniPay, isFarcaster } = useWallet();
 
-  //  Form state
+  //  Form state ─
   const [invoiceType, setInvoiceType] = useState<InvoiceType>("Standard");
   const [selectedToken, setSelectedToken] = useState<TokenKey>("cUSD");
   const [title, setTitle] = useState("");
@@ -81,7 +87,7 @@ export default function CreateInvoice() {
   const [notes, setNotes] = useState("");
   const [interval, setInterval] = useState<Interval>("monthly");
   const [lineItems, setLineItems] = useState<LineItem[]>([
-    { description: "", quantity: 1, unitPrice: "" },
+    { description: "", quantity: "1", unitPrice: "" },
   ]);
   const [milestones, setMilestones] = useState<MilestoneItem[]>([
     { description: "", amount: "" },
@@ -100,21 +106,19 @@ export default function CreateInvoice() {
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: txHash,
   });
-
   const isSubmitting = isPending || isConfirming || isUploadingIPFS;
 
   //  Calculations
-  const lineItemTotal = lineItems.reduce((sum, item) => {
-    const price = parseFloat(item.unitPrice) || 0;
-    return sum + item.quantity * price;
-  }, 0);
-
-  const milestoneTotal = milestones.reduce((sum, m) => {
-    return sum + (parseFloat(m.amount) || 0);
-  }, 0);
-
+  const lineItemsTotal = lineItems.reduce(
+    (sum, item) => sum + lineItemTotal(item),
+    0,
+  );
+  const milestoneTotal = milestones.reduce(
+    (sum, m) => sum + parseNum(m.amount),
+    0,
+  );
   const invoiceAmount =
-    invoiceType === "Milestone" ? milestoneTotal : lineItemTotal;
+    invoiceType === "Milestone" ? milestoneTotal : lineItemsTotal;
   const platformFee = invoiceAmount * 0.02;
   const clientTotal = invoiceAmount + platformFee;
 
@@ -122,24 +126,20 @@ export default function CreateInvoice() {
   const addLineItem = () =>
     setLineItems([
       ...lineItems,
-      { description: "", quantity: 1, unitPrice: "" },
+      { description: "", quantity: "1", unitPrice: "" },
     ]);
 
   const removeLineItem = (i: number) =>
     setLineItems(lineItems.filter((_, idx) => idx !== i));
 
-  const updateLineItem = (
-    i: number,
-    field: keyof LineItem,
-    value: string | number,
-  ) =>
+  const updateLineItem = (i: number, field: keyof LineItem, value: string) =>
     setLineItems(
       lineItems.map((item, idx) =>
         idx === i ? { ...item, [field]: value } : item,
       ),
     );
 
-  // Milestone helpers
+  //  Milestone helpers
   const addMilestone = () =>
     setMilestones([...milestones, { description: "", amount: "" }]);
 
@@ -155,6 +155,7 @@ export default function CreateInvoice() {
       milestones.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)),
     );
 
+  //  Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -169,19 +170,12 @@ export default function CreateInvoice() {
       );
       return;
     }
-
     if (!walletClient) {
       setError("Wallet client not ready. Please try again.");
       return;
     }
-
-    // Validate
     if (!title.trim()) {
       setError("Title is required.");
-      return;
-    }
-    if (!clientWallet.trim()) {
-      setError("Client wallet address is required.");
       return;
     }
     if (invoiceAmount <= 0) {
@@ -194,15 +188,28 @@ export default function CreateInvoice() {
     }
 
     if (invoiceType === "Milestone") {
-      if (milestones.some((m) => !m.description.trim() || !m.amount)) {
-        setError("All milestone phases require a description and amount.");
+      if (
+        milestones.some(
+          (m) => !m.description.trim() || !m.amount || parseNum(m.amount) <= 0,
+        )
+      ) {
+        setError(
+          "All milestone phases require a description and amount greater than 0.",
+        );
         return;
       }
     } else {
       if (
-        lineItems.some((item) => !item.description.trim() || !item.unitPrice)
+        lineItems.some(
+          (item) =>
+            !item.description.trim() ||
+            !item.unitPrice ||
+            parseNum(item.unitPrice) <= 0,
+        )
       ) {
-        setError("All line items require a description and price.");
+        setError(
+          "All line items require a description and a price greater than 0.",
+        );
         return;
       }
     }
@@ -210,7 +217,7 @@ export default function CreateInvoice() {
     setIsPending(true);
 
     try {
-      //  Step 1: Upload metadata to IPFS
+      // Step 1 — Upload metadata to IPFS
       setStep("uploading");
       setIsUploadingIPFS(true);
 
@@ -231,9 +238,9 @@ export default function CreateInvoice() {
           : {
               items: lineItems.map((item) => ({
                 name: item.description.trim(),
-                quantity: item.quantity,
+                quantity: parseNum(item.quantity),
                 unitPrice: item.unitPrice,
-                total: (item.quantity * parseFloat(item.unitPrice)).toFixed(
+                total: lineItemTotal(item).toFixed(
                   token.decimals > 6 ? 6 : token.decimals,
                 ),
               })),
@@ -243,21 +250,25 @@ export default function CreateInvoice() {
       setIsUploadingIPFS(false);
       setStep("confirming");
 
-      //  Step 2: Build contract args
+      // Step 2 — Build args
       const dueDateTimestamp = dueDate
         ? BigInt(Math.floor(new Date(dueDate).getTime() / 1000))
         : BigInt(0);
 
+      // lateFeesBps: user enters "0.5" meaning 0.5% → 50 bps
       const lateFeesBpsValue = lateFeesBps
-        ? BigInt(Math.round(parseFloat(lateFeesBps) * 100)) // e.g. 0.5% → 50 bps
+        ? BigInt(Math.round(parseFloat(lateFeesBps) * 100))
         : BigInt(0);
 
-      //  Step 3: Call contract
+      // Step 3 — Call contract
       let hash: `0x${string}`;
 
       if (invoiceType === "Milestone") {
         const milestoneAmounts = milestones.map((m) =>
-          parseUnits(m.amount, token.decimals),
+          parseUnits(
+            parseNum(m.amount).toFixed(token.decimals > 6 ? 6 : token.decimals),
+            token.decimals,
+          ),
         );
 
         hash = await walletClient.writeContract({
@@ -265,11 +276,12 @@ export default function CreateInvoice() {
           abi: contractAbi.abi,
           functionName: "createMilestoneInvoice",
           args: [
-            clientWallet as `0x${string}`, // client
-            token.address, // token
-            dueDateTimestamp, // dueDate (0 = none for milestone)
-            milestoneAmounts, // milestoneAmounts[]
-            metadataCID, // metadataCID
+            (clientWallet ||
+              "0x0000000000000000000000000000000000000000") as `0x${string}`,
+            token.address,
+            dueDateTimestamp,
+            milestoneAmounts,
+            metadataCID,
           ],
           chain: CHAIN,
           account: address,
@@ -285,14 +297,15 @@ export default function CreateInvoice() {
           abi: contractAbi.abi,
           functionName: "createInvoice",
           args: [
-            clientWallet as `0x${string}`, // client
-            token.address, // token
-            amountInUnits, // amount
-            dueDateTimestamp, // dueDate
-            lateFeesBpsValue, // lateFeesBps
-            invoiceType === "Recurring", // isRecurring
-            BigInt(invoiceType === "Recurring" ? INTERVAL_MAP[interval] : 0), // interval (0 = None for Standard)
-            metadataCID, // metadataCID
+            (clientWallet ||
+              "0x0000000000000000000000000000000000000000") as `0x${string}`,
+            token.address,
+            amountInUnits,
+            dueDateTimestamp,
+            lateFeesBpsValue,
+            invoiceType === "Recurring",
+            BigInt(invoiceType === "Recurring" ? INTERVAL_MAP[interval] : 0),
+            metadataCID,
           ],
           chain: CHAIN,
           account: address,
@@ -311,6 +324,7 @@ export default function CreateInvoice() {
     }
   };
 
+  //  Render
   return (
     <Layout>
       <div className="min-h-screen bg-[#F9FAFB]">
@@ -322,8 +336,8 @@ export default function CreateInvoice() {
           <h1 className="text-white text-xl font-bold">Create Invoice</h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 pb-32">
-          {/*  Invoice Type  */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 pb-10">
+          {/* Invoice Type */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block font-medium">
               Invoice Type
@@ -348,7 +362,7 @@ export default function CreateInvoice() {
             </div>
           </div>
 
-          {/*  Title  */}
+          {/* Title */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Invoice Title
@@ -358,12 +372,11 @@ export default function CreateInvoice() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Logo Design Services"
-              required
               className="w-full px-4 py-3 bg-white text-gray-900 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
             />
           </div>
 
-          {/*  Client Wallet  */}
+          {/* Client Wallet */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Client Wallet Address
@@ -372,8 +385,7 @@ export default function CreateInvoice() {
               type="text"
               value={clientWallet}
               onChange={(e) => setClientWallet(e.target.value)}
-              placeholder="0x..."
-              required
+              placeholder="0x... (leave empty for public invoice)"
               className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none font-mono text-sm"
             />
             <p className="text-xs text-gray-400 mt-1">
@@ -381,7 +393,7 @@ export default function CreateInvoice() {
             </p>
           </div>
 
-          {/*  Token Selector  */}
+          {/* Token Selector */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Payment Token
@@ -404,13 +416,14 @@ export default function CreateInvoice() {
             </div>
           </div>
 
-          {/*  Line Items (Standard + Recurring)  */}
+          {/* Line Items — Standard + Recurring */}
           <AnimatePresence>
             {invoiceType !== "Milestone" && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
               >
                 <label className="text-sm text-gray-600 mb-3 block">
                   Line Items
@@ -421,42 +434,53 @@ export default function CreateInvoice() {
                       key={i}
                       className="bg-white rounded-xl border border-gray-200 p-4 space-y-3"
                     >
+                      {/* Description row */}
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="Description"
+                          placeholder="Description e.g. Logo Design"
                           value={item.description}
                           onChange={(e) =>
                             updateLineItem(i, "description", e.target.value)
                           }
-                          className="flex-1 px-3 py-2 bg-gray-50  rounded-lg border border-gray-200 text-sm text-gray-600 focus:border-[#1B4332] focus:outline-none"
+                          className="flex-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                         />
                         {lineItems.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeLineItem(i)}
-                            className="p-2 text-red-400 hover:text-red-600"
+                            className="p-2 text-red-400 hover:text-red-600 flex-shrink-0"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>
+
+                      {/* Qty / Price / Total row */}
                       <div className="flex gap-2">
-                        <div className="w-20">
+                        <div className="w-24 flex-shrink-0">
                           <label className="text-xs text-gray-400 mb-1 block">
                             Qty
                           </label>
+                          {/*
+                            Use type="text" + inputMode="decimal" so:
+                            - Mobile shows numeric keyboard
+                            - User can type "12", "0.5", "100" freely
+                            - No browser-imposed step restrictions
+                          */}
                           <input
-                            type="number"
-                            min="1"
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="1"
                             value={item.quantity}
-                            onChange={(e) =>
-                              updateLineItem(
-                                i,
-                                "quantity",
-                                parseInt(e.target.value) || 1,
-                              )
-                            }
+                            onChange={(e) => {
+                              // Only allow numbers and single decimal point
+                              const val = e.target.value.replace(
+                                /[^0-9.]/g,
+                                "",
+                              );
+                              updateLineItem(i, "quantity", val);
+                            }}
                             className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                           />
                         </div>
@@ -464,15 +488,23 @@ export default function CreateInvoice() {
                           <label className="text-xs text-gray-400 mb-1 block">
                             Unit Price ({selectedToken})
                           </label>
+                          {/*
+                            type="text" + inputMode="decimal" allows:
+                            - Any decimal precision e.g. "0.0001"
+                            - No step restrictions
+                          */}
                           <input
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="0.00"
                             value={item.unitPrice}
-                            onChange={(e) =>
-                              updateLineItem(i, "unitPrice", e.target.value)
-                            }
+                            onChange={(e) => {
+                              const val = e.target.value.replace(
+                                /[^0-9.]/g,
+                                "",
+                              );
+                              updateLineItem(i, "unitPrice", val);
+                            }}
                             className="w-full px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                           />
                         </div>
@@ -481,9 +513,11 @@ export default function CreateInvoice() {
                             Total
                           </label>
                           <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700">
-                            {(
-                              item.quantity * (parseFloat(item.unitPrice) || 0)
-                            ).toFixed(2)}
+                            {lineItemTotal(item).toFixed(
+                              TOKENS[selectedToken].decimals > 6
+                                ? 6
+                                : TOKENS[selectedToken].decimals,
+                            )}
                           </div>
                         </div>
                       </div>
@@ -502,13 +536,14 @@ export default function CreateInvoice() {
             )}
           </AnimatePresence>
 
-          {/*  Milestones  */}
+          {/* Milestones */}
           <AnimatePresence>
             {invoiceType === "Milestone" && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
               >
                 <label className="text-sm text-gray-600 mb-3 block">
                   Milestone Phases
@@ -520,12 +555,12 @@ export default function CreateInvoice() {
                       className="bg-white rounded-xl border border-gray-200 p-4 space-y-3"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-[#1B4332] bg-[#1B4332]/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-[#1B4332] bg-[#1B4332]/10 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
                           {i + 1}
                         </span>
                         <input
                           type="text"
-                          placeholder="Phase description (e.g. Design mockups)"
+                          placeholder="Phase description e.g. Design mockups"
                           value={m.description}
                           onChange={(e) =>
                             updateMilestone(i, "description", e.target.value)
@@ -536,26 +571,28 @@ export default function CreateInvoice() {
                           <button
                             type="button"
                             onClick={() => removeMilestone(i)}
-                            className="p-2 text-red-400 hover:text-red-600"
+                            className="p-2 text-red-400 hover:text-red-600 flex-shrink-0"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">Amount</span>
+                        <span className="text-sm text-gray-500 flex-shrink-0">
+                          Amount
+                        </span>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="0.00"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="e.g. 300"
                           value={m.amount}
-                          onChange={(e) =>
-                            updateMilestone(i, "amount", e.target.value)
-                          }
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.]/g, "");
+                            updateMilestone(i, "amount", val);
+                          }}
                           className="flex-1 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 text-sm focus:border-[#1B4332] focus:outline-none"
                         />
-                        <span className="text-sm font-medium text-gray-600">
+                        <span className="text-sm font-medium text-gray-600 flex-shrink-0">
                           {selectedToken}
                         </span>
                       </div>
@@ -574,7 +611,7 @@ export default function CreateInvoice() {
             )}
           </AnimatePresence>
 
-          {/*  Due Date (not required for Milestone)  */}
+          {/* Due Date — hidden for Milestone, not required */}
           {invoiceType !== "Milestone" && (
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
@@ -585,8 +622,8 @@ export default function CreateInvoice() {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  required
                   min={new Date().toISOString().split("T")[0]}
+                  // No required attribute — validated manually in handleSubmit
                   className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
                 />
                 <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
@@ -594,13 +631,14 @@ export default function CreateInvoice() {
             </div>
           )}
 
-          {/*  Recurring Interval  */}
+          {/* Recurring Interval */}
           <AnimatePresence>
             {invoiceType === "Recurring" && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
               >
                 <label className="text-sm text-gray-600 mb-2 block">
                   Billing Interval
@@ -618,7 +656,7 @@ export default function CreateInvoice() {
             )}
           </AnimatePresence>
 
-          {/*  Late Fee (Standard + Recurring only)  */}
+          {/* Late Fee — Standard + Recurring only */}
           {invoiceType !== "Milestone" && (
             <div>
               <label className="text-sm text-gray-600 mb-2 block">
@@ -627,14 +665,15 @@ export default function CreateInvoice() {
               </label>
               <div className="relative">
                 <input
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="e.g. 0.5"
                   value={lateFeesBps}
-                  onChange={(e) => setLateFeesBps(e.target.value)}
-                  className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, "");
+                    setLateFeesBps(val);
+                  }}
+                  className="w-full px-4 py-3 bg-white text-gray-600 rounded-xl border border-gray-200 focus:border-[#1B4332] focus:outline-none pr-16"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
                   %/day
@@ -647,7 +686,7 @@ export default function CreateInvoice() {
             </div>
           )}
 
-          {/*  Notes / Terms  */}
+          {/* Notes / Terms */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
               Notes / Terms{" "}
@@ -662,7 +701,7 @@ export default function CreateInvoice() {
             />
           </div>
 
-          {/*  Fee Summary  */}
+          {/* Fee Summary */}
           {invoiceAmount > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
               <div className="flex justify-between text-sm text-gray-600">
@@ -696,7 +735,7 @@ export default function CreateInvoice() {
             </div>
           )}
 
-          {/*  Fee note  */}
+          {/* Fee note */}
           <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
             <p className="text-sm text-amber-700">
               2% platform fee added on top — you always receive the full amount
@@ -704,14 +743,14 @@ export default function CreateInvoice() {
             </p>
           </div>
 
-          {/*  Error  */}
+          {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
               {error}
             </div>
           )}
 
-          {/*  Wallet warning  */}
+          {/* Wallet warning */}
           {!address && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-yellow-700 text-sm">
               Open this app inside MiniPay or Farcaster to create invoices
@@ -719,9 +758,8 @@ export default function CreateInvoice() {
             </div>
           )}
 
-          {/*  Submit button  */}
-          {/* <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100"> */}
-          <div className="pt-4">
+          {/* Submit */}
+          <div className="pt-2">
             <button
               type="submit"
               disabled={
