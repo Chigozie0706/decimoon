@@ -27,33 +27,33 @@ export function useWallet() {
     // @ts-ignore
     const eth = window.ethereum;
 
-    // --- 1. FARCASTER ---
-    let isFC = false;
+    // Detect iframe → Farcaster
+    const inIframe = window.parent !== window;
 
-    try {
-      if (sdk && window.parent !== window) {
-        sdk.actions.ready();
-        setIsFarcaster(true);
-        isFC = true;
-      }
-    } catch {
-      setIsFarcaster(false);
+    if (inIframe) {
+      setIsFarcaster(true);
     }
 
-    // --- 2. MINIPAY ---
+    // MiniPay detection
     if (eth && eth.isMiniPay) {
       setIsMiniPay(true);
-      connect({ connector: injected({ target: "metaMask" }) });
+
+      connect({
+        connector: injected({ target: "metaMask" }),
+      });
+
       return;
     }
 
-    // --- 3. WEB (fallback) ---
-    if (!isFC) {
-      setIsMiniPay(false);
+    // Web fallback
+    if (!inIframe) {
       setIsFarcaster(false);
+      setIsMiniPay(false);
 
       if (eth) {
-        connect({ connector: injected({ target: "metaMask" }) });
+        connect({
+          connector: injected({ target: "metaMask" }),
+        });
       }
     }
   }, [connect]);

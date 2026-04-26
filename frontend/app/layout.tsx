@@ -1,8 +1,12 @@
+"use client";
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Provider from "@/providers/WagmiProviders";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { useEffect } from "react";
+import { initFarcaster } from "@/lib/farcaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,6 +33,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  useEffect(() => {
+    initFarcaster(); // runs immediately on mount
+  }, []);
+
   return (
     <html
       lang="en"
