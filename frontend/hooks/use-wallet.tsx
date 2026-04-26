@@ -21,18 +21,6 @@ export function useWallet() {
   const { address, isConnected, connector, chain, status } = useConnection();
   const publicClient = usePublicClient({ chainId: CHAIN_ID });
 
-  // useEffect(() => {
-  //   if (typeof window === "undefined") return;
-  //   // @ts-ignore
-  //   if (window.ethereum && (window.ethereum as any).isMiniPay) {
-  //     setIsMiniPay(true);
-  //     connect({ connector: injected({ target: "metaMask" }) });
-  //   } else {
-  //     setIsFarcaster(true);
-  //     sdk.actions.ready();
-  //   }
-  // }, [connect]);
-
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -59,13 +47,6 @@ export function useWallet() {
       setIsFarcaster(false);
     }
   }, [connect]);
-
-  console.log({
-    isMiniPay,
-    isFarcaster,
-    iframe: window.location !== window.parent.location,
-    userAgent: navigator.userAgent,
-  });
 
   async function getUSDmBalance(userAddress: `0x${string}`) {
     if (!publicClient) return "0";

@@ -1,9 +1,9 @@
-import dynamic from "next/dynamic";
+"use client";
 
-const CreateInvoice = dynamic(() => import("@/components/CreateInvoice"), {
-  ssr: false,
-});
+import CreateInvoice from "@/components/CreateInvoice";
 
-export default function Page() {
+function page() {
   return <CreateInvoice />;
 }
+
+export default page;
