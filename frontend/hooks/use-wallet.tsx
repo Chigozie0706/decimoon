@@ -24,18 +24,28 @@ export function useWallet() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // @ts-ignore
     const eth = window.ethereum;
 
-    // Detect iframe → Farcaster
-    const inIframe = window.parent !== window;
+    async function initFarcaster() {
+      try {
+        const context = await sdk.context;
 
-    if (inIframe) {
-      setIsFarcaster(true);
+        if (context?.user) {
+          setIsFarcaster(true);
+          sdk.actions.ready();
+        } else {
+          setIsFarcaster(false);
+        }
+      } catch {
+        setIsFarcaster(false);
+      }
     }
 
-    // MiniPay detection
-    if (eth && eth.isMiniPay) {
+    // 1. Farcaster check (SDK - BEST SOURCE OF TRUTH)
+    initFarcaster();
+
+    // 2. MiniPay detection
+    if (eth && (eth as any).isMiniPay) {
       setIsMiniPay(true);
 
       connect({
@@ -45,16 +55,11 @@ export function useWallet() {
       return;
     }
 
-    // Web fallback
-    if (!inIframe) {
-      setIsFarcaster(false);
-      setIsMiniPay(false);
-
-      if (eth) {
-        connect({
-          connector: injected({ target: "metaMask" }),
-        });
-      }
+    // 3. Web fallback
+    if (eth) {
+      connect({
+        connector: injected({ target: "metaMask" }),
+      });
     }
   }, [connect]);
 
