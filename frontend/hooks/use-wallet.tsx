@@ -24,6 +24,7 @@ export function useWallet() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // @ts-ignore
     const eth = window.ethereum;
 
     async function initFarcaster() {
