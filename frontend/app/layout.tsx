@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   other: {
     "talentapp:project_verification":
       "13bec2d071537dd2683bccf570107c17aaeb1344b8d3027ced25c0435405301258b19502245fb4aeba79643ab8933c1dc934bda2c12d117cfb4676cd635ed2c7",
+
+    "fc:miniapp": "true",
+    "fc:frame": "vNext",
   },
 };
 
@@ -35,7 +38,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ClientProviders>{children}</ClientProviders>
+        <Provider>
+          <ClientProviders>{children}</ClientProviders>
+        </Provider>
       </body>
     </html>
   );
