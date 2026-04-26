@@ -83,7 +83,7 @@ export default function InvoiceCreated() {
 
   const shareLink =
     typeof window !== "undefined" && invoiceId
-      ? `${window.location.origin}/invoice-detail/${invoiceId}`
+      ? `${window.location.origin}/invoice-details/${invoiceId}`
       : "";
 
   const handleCopy = () => {
