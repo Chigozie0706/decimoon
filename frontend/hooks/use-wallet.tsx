@@ -24,22 +24,37 @@ export function useWallet() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // @ts-ignore
+    const eth = window.ethereum;
+
+    // --- 1. FARCASTER ---
+    let isFC = false;
+
     try {
-      if (sdk) {
+      if (sdk && window.parent !== window) {
         sdk.actions.ready();
         setIsFarcaster(true);
+        isFC = true;
       }
     } catch {
       setIsFarcaster(false);
     }
 
-    // @ts-ignore
-    const eth = window.ethereum;
-
-    // MiniPay
+    // --- 2. MINIPAY ---
     if (eth && eth.isMiniPay) {
       setIsMiniPay(true);
       connect({ connector: injected({ target: "metaMask" }) });
+      return;
+    }
+
+    // --- 3. WEB (fallback) ---
+    if (!isFC) {
+      setIsMiniPay(false);
+      setIsFarcaster(false);
+
+      if (eth) {
+        connect({ connector: injected({ target: "metaMask" }) });
+      }
     }
   }, [connect]);
 
