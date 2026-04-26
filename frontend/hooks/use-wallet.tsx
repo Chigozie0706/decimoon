@@ -24,27 +24,22 @@ export function useWallet() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    try {
+      if (sdk) {
+        sdk.actions.ready();
+        setIsFarcaster(true);
+      }
+    } catch {
+      setIsFarcaster(false);
+    }
+
     // @ts-ignore
     const eth = window.ethereum;
 
-    // MiniPay detection
+    // MiniPay
     if (eth && eth.isMiniPay) {
       setIsMiniPay(true);
       connect({ connector: injected({ target: "metaMask" }) });
-      return;
-    }
-
-    // Farcaster detection (REAL check)
-    const isFC =
-      typeof window !== "undefined" &&
-      (window.location !== window.parent.location || // iframe
-        navigator.userAgent.toLowerCase().includes("farcaster"));
-
-    if (isFC) {
-      setIsFarcaster(true);
-      sdk.actions.ready();
-    } else {
-      setIsFarcaster(false);
     }
   }, [connect]);
 
