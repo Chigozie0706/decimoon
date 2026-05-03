@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@/hooks/use-wallet";
 import { useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
-import { celo, celoSepolia } from "wagmi/chains";
+import { celo } from "wagmi/chains";
 import { motion } from "motion/react";
 import contractAbi from "@/contract/abi.json";
 import { Abi } from "viem";
@@ -28,24 +28,24 @@ const CHAIN = celo;
 
 const STATUS_MAP: Record<
   number,
-  "unpaid" | "paid" | "cancelled" | "overdue" | "disputed"
+  "Unpaid" | "Paid" | "Cancelled" | "Overdue" | "Disputed"
 > = {
-  0: "unpaid",
-  1: "paid",
-  2: "cancelled",
-  3: "overdue",
-  4: "disputed",
+  0: "Unpaid",
+  1: "Paid",
+  2: "Cancelled",
+  3: "Overdue",
+  4: "Disputed",
 };
 
 const ABI = contractAbi.abi as Abi;
 
 interface Invoice {
   id: string;
-  title: string;
+  invoiceRef: string;
   client: string;
   creator: string;
   amount: number;
-  status: "paid" | "unpaid" | "overdue" | "cancelled" | "disputed";
+  status: "Unpaid" | "Paid" | "Cancelled" | "Overdue" | "Disputed";
   date: string;
   dueDate: string;
 }
@@ -80,11 +80,12 @@ function useInvoiceBatch(ids: bigint[]): Invoice[] {
       const inv = r.result as any;
       return {
         id: inv.id.toString(),
-        title: inv.title,
+        invoiceRef: inv.invoiceRef,
         client: inv.client,
         creator: inv.creator,
         amount: parseFloat(formatUnits(inv.amount, 18)),
-        status: STATUS_MAP[inv.status as number] ?? "unpaid",
+        status: (STATUS_MAP[inv.status as number] ??
+          "Unpaid") as Invoice["status"],
         date: new Date(Number(inv.createdAt) * 1000).toLocaleDateString(),
         dueDate: new Date(Number(inv.dueDate) * 1000).toLocaleDateString(),
       };
@@ -102,35 +103,32 @@ export default function Home() {
     getUSDmBalance(address).then(setUsdmBalance).catch(console.error);
   }, [address]);
 
-  // Fetch IDs
   const sentIds = useInvoiceIds(address, "getCreatorInvoices");
   const receivedIds = useInvoiceIds(address, "getClientInvoices");
 
-  // Fetch invoices
   const sentInvoices = useInvoiceBatch(sentIds);
   const receivedInvoices = useInvoiceBatch(receivedIds);
 
-  // Derived data
   const toPayInvoices = receivedInvoices.filter(
-    (i) => i.status === "unpaid" || i.status === "overdue",
+    (i) => i.status === "Unpaid" || i.status === "Overdue",
+  );
+  const disputedReceivedInvoices = receivedInvoices.filter(
+    (i) => i.status === "Disputed",
   );
 
   const recentSent = sentInvoices.slice(0, 5);
 
-  const unpaidCount = sentInvoices.filter((i) => i.status === "unpaid").length;
-  const paidCount = sentInvoices.filter((i) => i.status === "paid").length;
+  const unpaidCount = sentInvoices.filter((i) => i.status === "Unpaid").length;
+  const paidCount = sentInvoices.filter((i) => i.status === "Paid").length;
   const overdueCount = sentInvoices.filter(
-    (i) => i.status === "overdue",
+    (i) => i.status === "Overdue",
   ).length;
 
-  const overdueCoun1t = sentInvoices.filter(
-    (i) => i.status === "overdue",
-  ).length;
   const totalOwed = sentInvoices
-    .filter((i) => i.status === "unpaid" || i.status === "overdue")
+    .filter((i) => i.status === "Unpaid" || i.status === "Overdue")
     .reduce((s, i) => s + i.amount, 0);
   const totalEarned = sentInvoices
-    .filter((i) => i.status === "paid")
+    .filter((i) => i.status === "Paid")
     .reduce((s, i) => s + i.amount, 0);
   const totalToPay = toPayInvoices.reduce((s, i) => s + i.amount, 0);
 
@@ -142,9 +140,8 @@ export default function Home() {
   return (
     <Layout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/*  Header ─ */}
+        {/* Header */}
         <div className="bg-[#1B4332] px-6 pt-12 pb-8">
-          {/* Wallet row */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div
@@ -168,7 +165,6 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Balance card */}
           <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
             <p className="text-white/60 text-xs mb-1">USDm Balance</p>
             <h2
@@ -194,15 +190,73 @@ export default function Home() {
         </div>
 
         <div className="px-6 py-6 space-y-6">
-          {/*  To Pay (urgent)  */}
-          {toPayInvoices.length > 0 && (
+          {disputedReceivedInvoices.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-orange-100/60">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-orange-500" />
+                    <span
+                      className="text-orange-700 text-sm"
+                      style={{ fontWeight: 700 }}
+                    >
+                      {disputedReceivedInvoices.length} disputed{" "}
+                      {disputedReceivedInvoices.length === 1
+                        ? "invoice"
+                        : "invoices"}
+                    </span>
+                  </div>
+                  <span className="text-orange-600 text-xs bg-orange-100 px-2 py-0.5 rounded-full font-medium">
+                    Awaiting resolution
+                  </span>
+                </div>
+                {disputedReceivedInvoices.map((invoice, i) => (
+                  <button
+                    key={invoice.id}
+                    onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
+                    className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-100/40 transition-colors text-left ${
+                      i < disputedReceivedInvoices.length - 1
+                        ? "border-b border-orange-100"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-gray-800 text-sm truncate font-mono"
+                        style={{ fontWeight: 600 }}
+                      >
+                        {invoice.invoiceRef}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        From: {invoice.creator.slice(0, 6)}...
+                        {invoice.creator.slice(-4)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-3 shrink-0">
+                      <p className="text-orange-600 text-sm font-bold">
+                        {invoice.amount.toFixed(2)}{" "}
+                        <span className="text-xs">USDm</span>
+                      </p>
+                      <ChevronRight className="w-4 h-4 text-orange-400" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* To Pay (urgent) */}
+          {toPayInvoices.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
+            >
               <div className="bg-red-50 border border-red-200 rounded-2xl overflow-hidden">
-                {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-red-100/60">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-red-500" />
@@ -222,13 +276,10 @@ export default function Home() {
                   </span>
                 </div>
 
-                {/* Invoice rows */}
                 {toPayInvoices.map((invoice, i) => (
                   <button
                     key={invoice.id}
-                    onClick={() =>
-                      router.push(`/invoice-details/${invoice.id}`)
-                    }
+                    onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
                     className={`w-full px-4 py-3 flex items-center justify-between hover:bg-red-100/40 transition-colors text-left ${
                       i < toPayInvoices.length - 1
                         ? "border-b border-red-100"
@@ -237,10 +288,10 @@ export default function Home() {
                   >
                     <div className="flex-1 min-w-0">
                       <p
-                        className="text-gray-800 text-sm truncate"
+                        className="text-gray-800 text-sm truncate font-mono"
                         style={{ fontWeight: 600 }}
                       >
-                        {invoice.title}
+                        {invoice.invoiceRef}
                       </p>
                       <p className="text-gray-500 text-xs mt-0.5">
                         From: {invoice.creator.slice(0, 6)}...
@@ -268,7 +319,7 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/*  Quick Actions  */}
+          {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => router.push("/create-invoice")}
@@ -294,7 +345,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/*  Stats  */}
+          {/* Stats */}
           <div>
             <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
               Your Invoice Stats
@@ -330,7 +381,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/*  Recent Sent  */}
+          {/* Recent Sent */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-gray-400 uppercase tracking-wide">
@@ -370,17 +421,15 @@ export default function Home() {
                 {recentSent.map((invoice) => (
                   <button
                     key={invoice.id}
-                    onClick={() =>
-                      router.push(`/invoice-details/${invoice.id}`)
-                    }
+                    onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
                     className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow text-left"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h4
-                        className="text-gray-800 text-sm"
+                        className="text-gray-800 text-sm font-mono"
                         style={{ fontWeight: 600 }}
                       >
-                        {invoice.title}
+                        {invoice.invoiceRef}
                       </h4>
                       <StatusBadge status={invoice.status} />
                     </div>
