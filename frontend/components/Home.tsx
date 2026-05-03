@@ -217,7 +217,9 @@ export default function Home() {
                 {disputedReceivedInvoices.map((invoice, i) => (
                   <button
                     key={invoice.id}
-                    onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
+                    onClick={() =>
+                      router.push(`/invoice-details/${invoice.id}`)
+                    }
                     className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-100/40 transition-colors text-left ${
                       i < disputedReceivedInvoices.length - 1
                         ? "border-b border-orange-100"
@@ -279,7 +281,9 @@ export default function Home() {
                 {toPayInvoices.map((invoice, i) => (
                   <button
                     key={invoice.id}
-                    onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
+                    onClick={() =>
+                      router.push(`/invoice-details/${invoice.id}`)
+                    }
                     className={`w-full px-4 py-3 flex items-center justify-between hover:bg-red-100/40 transition-colors text-left ${
                       i < toPayInvoices.length - 1
                         ? "border-b border-red-100"
@@ -421,7 +425,9 @@ export default function Home() {
                 {recentSent.map((invoice) => (
                   <button
                     key={invoice.id}
-                    onClick={() => router.push(`/invoice-detail/${invoice.id}`)}
+                    onClick={() =>
+                      router.push(`/invoice-details/${invoice.id}`)
+                    }
                     className="w-full bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow text-left"
                   >
                     <div className="flex items-center justify-between mb-2">
