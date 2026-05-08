@@ -79,6 +79,7 @@ export function useWallet() {
   return {
     isMiniPay,
     isFarcaster,
+    isDetecting,
     address,
     isConnected,
     connector,
