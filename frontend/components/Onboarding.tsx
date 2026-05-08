@@ -11,7 +11,7 @@ export default function Onboarding() {
   const router = useRouter();
   // -1 = splash screen, 0-2 = onboarding slides
   const [currentSlide, setCurrentSlide] = useState(-1);
-  const { isMiniPay, isFarcaster, isConnected } = useWallet();
+  const { isMiniPay, isFarcaster, isConnected, isDetecting } = useWallet();
 
   const slides = [
     {
