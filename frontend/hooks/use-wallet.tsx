@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useConnect, useConnection, usePublicClient } from "wagmi";
 import { injected } from "wagmi/connectors";
+import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import { formatEther, getContract } from "viem";
 import { celo, celoSepolia } from "wagmi/chains";
 import { erc20Abi } from "viem";
 import { sdk } from "@farcaster/miniapp-sdk";
 
-const IS_TESTNET = false; // ← flip to true for Sepolia
+const IS_TESTNET = false;
 const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
 const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
 const USDM_ADDRESS = IS_TESTNET ? USDM_SEPOLIA : USDM_MAINNET;
@@ -24,44 +25,40 @@ export function useWallet() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // @ts-ignore
-    const eth = window.ethereum;
+    const eth = (window as any).ethereum;
 
+    // 1. MiniPay — check first (sync, most reliable signal)
+    if (eth?.isMiniPay) {
+      setIsMiniPay(true);
+      connect({ connector: injected({ target: "metaMask" }) });
+      return; // stop here, no need to check Farcaster
+    }
+
+    // 2. Farcaster — async, but DON'T fall through to MetaMask while waiting
     async function initFarcaster() {
       try {
         const context = await sdk.context;
 
         if (context?.user) {
           setIsFarcaster(true);
+          // Connect with the Farcaster connector, NOT injected
+          connect({ connector: farcasterMiniApp() });
           sdk.actions.ready();
         } else {
-          setIsFarcaster(false);
+          // Not Farcaster — now safe to try injected (plain browser)
+          if (eth) {
+            connect({ connector: injected() });
+          }
         }
       } catch {
-        setIsFarcaster(false);
+        // SDK threw — not in Farcaster context, try plain injected
+        if (eth) {
+          connect({ connector: injected() });
+        }
       }
     }
 
-    // 1. Farcaster check (SDK - BEST SOURCE OF TRUTH)
     initFarcaster();
-
-    // 2. MiniPay detection
-    if (eth && (eth as any).isMiniPay) {
-      setIsMiniPay(true);
-
-      connect({
-        connector: injected({ target: "metaMask" }),
-      });
-
-      return;
-    }
-
-    // 3. Web fallback
-    if (eth) {
-      connect({
-        connector: injected({ target: "metaMask" }),
-      });
-    }
   }, [connect]);
 
   async function getUSDmBalance(userAddress: `0x${string}`) {
