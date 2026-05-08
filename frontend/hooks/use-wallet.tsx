@@ -18,6 +18,7 @@ const CHAIN_ID = IS_TESTNET ? celoSepolia.id : celo.id;
 export function useWallet() {
   const [isMiniPay, setIsMiniPay] = useState(false);
   const [isFarcaster, setIsFarcaster] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(true);
   const { mutate: connect } = useConnect();
   const { address, isConnected, connector, chain, status } = useConnection();
   const publicClient = usePublicClient({ chainId: CHAIN_ID });
@@ -30,6 +31,7 @@ export function useWallet() {
     // 1. MiniPay — check first (sync, most reliable signal)
     if (eth?.isMiniPay) {
       setIsMiniPay(true);
+      setIsDetecting(false);
       connect({ connector: injected({ target: "metaMask" }) });
       return; // stop here, no need to check Farcaster
     }
