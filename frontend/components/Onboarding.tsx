@@ -59,15 +59,16 @@ export default function Onboarding() {
     return (
       <Layout showNav={false}>
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#1B4332] text-white px-6 text-center">
+          <div className="w-16 h-16 bg-[#F4C430] rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Wallet className="w-8 h-8 text-[#1B4332]" />
+          </div>
           <h1 className="text-2xl font-bold mb-4">
             Open Decimoon in Farcaster
           </h1>
-
           <p className="text-white/70 text-sm mb-8 max-w-sm">
             Decimoon is a Farcaster mini app. To create and pay invoices, please
-            open it inside Farcaster.
+            open it inside Farcaster or MiniPay.
           </p>
-
           <a
             href="https://farcaster.xyz/miniapps/Zp22UHY2FcnO/decimoon"
             target="_blank"
