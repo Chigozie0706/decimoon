@@ -39,6 +39,22 @@ export default function Onboarding() {
 
   const isInApp = isMiniPay || isFarcaster;
 
+  // ── Show nothing (or a spinner) while detection is running ──
+  if (isDetecting) {
+    return (
+      <Layout showNav={false}>
+        <div className="min-h-screen flex items-center justify-center bg-[#1B4332]">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-[#F4C430] rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Wallet className="w-8 h-8 text-[#1B4332]" />
+            </div>
+            <p className="text-white/50 text-sm">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   if (!isInApp) {
     return (
       <Layout showNav={false}>
