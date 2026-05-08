@@ -46,11 +46,6 @@ export function useWallet() {
           // Connect with the Farcaster connector, NOT injected
           connect({ connector: farcasterMiniApp() });
           sdk.actions.ready();
-        } else {
-          // confirmed NOT Farcaster — safe to show web wall
-          if (eth) {
-            connect({ connector: injected() });
-          }
         }
       } catch {
         // SDK threw — not in Farcaster context
