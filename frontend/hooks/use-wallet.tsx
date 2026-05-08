@@ -36,7 +36,7 @@ export function useWallet() {
       return; // stop here, no need to check Farcaster
     }
 
-    // 2. Farcaster — async, but DON'T fall through to MetaMask while waiting
+    // 2. Farcaster — async, wait for it before showing anything
     async function initFarcaster() {
       try {
         const context = await sdk.context;
@@ -47,16 +47,18 @@ export function useWallet() {
           connect({ connector: farcasterMiniApp() });
           sdk.actions.ready();
         } else {
-          // Not Farcaster — now safe to try injected (plain browser)
+          // confirmed NOT Farcaster — safe to show web wall
           if (eth) {
             connect({ connector: injected() });
           }
         }
       } catch {
-        // SDK threw — not in Farcaster context, try plain injected
+        // SDK threw — not in Farcaster context
         if (eth) {
           connect({ connector: injected() });
         }
+      } finally {
+        setIsDetecting(false);
       }
     }
 
