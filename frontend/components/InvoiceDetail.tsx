@@ -33,7 +33,7 @@ import {
   USDM_ABI,
 } from "@/lib/contract";
 
-//  Token config ─
+//  Token config
 const TOKEN_CONFIG: Record<string, { symbol: string; decimals: number }> = {
   "0x765de816845861e75a25fca122bb6898b8b1282a": {
     symbol: "cUSD",
@@ -43,14 +43,12 @@ const TOKEN_CONFIG: Record<string, { symbol: string; decimals: number }> = {
     symbol: "cEUR",
     decimals: 18,
   },
-  "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e": {
-    symbol: "USDT",
-    decimals: 6,
-  },
+  "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e": { symbol: "USDT", decimals: 6 },
+
   "0xceba9300f2b948710d2653dd7b07f33a8b32118c": { symbol: "USDC", decimals: 6 },
 };
 
-//  Status / Type maps ─
+//  Maps
 const STATUS_MAP: Record<
   number,
   "Unpaid" | "Paid" | "Cancelled" | "Overdue" | "Disputed"
@@ -61,13 +59,11 @@ const STATUS_MAP: Record<
   3: "Overdue",
   4: "Disputed",
 };
-
 const INVOICE_TYPE_MAP: Record<number, string> = {
   0: "Standard",
   1: "Recurring",
   2: "Milestone",
 };
-
 const INTERVAL_DISPLAY: Record<number, string> = {
   0: "None",
   1: "Weekly",
@@ -75,7 +71,7 @@ const INTERVAL_DISPLAY: Record<number, string> = {
   3: "Monthly",
 };
 
-//  On-chain Invoice type
+//  Types
 interface OnChainInvoice {
   id: bigint;
   invoiceRef: string;
@@ -97,7 +93,12 @@ interface OnChainInvoice {
   disputeReason: string;
 }
 
-//  IPFS Metadata type ─
+interface OnChainMilestone {
+  amount: bigint;
+  released: boolean;
+  releasedAt: bigint;
+}
+
 interface IPFSMetadata {
   title?: string;
   notes?: string;
@@ -108,10 +109,7 @@ interface IPFSMetadata {
     unitPrice: string;
     total: string;
   }[];
-  milestones?: {
-    index: number;
-    description: string;
-  }[];
+  milestones?: { index: number; description: string }[];
 }
 
 //  Component
@@ -124,12 +122,25 @@ export default function InvoiceDetail() {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<
-    "idle" | "approving" | "paying" | "cancelling" | "disputing"
+    "idle" | "approving" | "paying" | "cancelling" | "disputing" | "releasing"
   >("idle");
+
+  // tx hashes
   const [approveHash, setApproveHash] = useState<`0x${string}` | undefined>();
   const [payHash, setPayHash] = useState<`0x${string}` | undefined>();
   const [cancelHash, setCancelHash] = useState<`0x${string}` | undefined>();
   const [disputeHash, setDisputeHash] = useState<`0x${string}` | undefined>();
+  const [milestoneApproveHash, setMilestoneApproveHash] = useState<
+    `0x${string}` | undefined
+  >();
+  const [milestonePayHash, setMilestonePayHash] = useState<
+    `0x${string}` | undefined
+  >();
+
+  // milestone release tracking
+  const [releasingIndex, setReleasingIndex] = useState<number | null>(null);
+
+  // UI
   const [metadata, setMetadata] = useState<IPFSMetadata | null>(null);
   const [metaLoading, setMetaLoading] = useState(false);
   const [showDisputeInput, setShowDisputeInput] = useState(false);
@@ -150,30 +161,69 @@ export default function InvoiceDetail() {
     chainId: CHAIN.id,
   });
 
-  // Get exact client total (includes platform fee + any late fee)
+  // On-chain milestones (amounts + released status)
+  const { data: rawMilestones, refetch: refetchMilestones } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: "getMilestones",
+    args: [invoiceId],
+    chainId: CHAIN.id,
+    query: {
+      enabled: !!rawInvoice && (rawInvoice as OnChainInvoice).invoiceType === 2,
+    },
+  });
+
+  // Standard invoice approval amount
   const { data: clientTotal } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: ABI,
     functionName: "getClientTotal",
     args: [invoiceId],
     chainId: CHAIN.id,
-    query: { enabled: !!rawInvoice },
+    query: {
+      enabled: !!rawInvoice && (rawInvoice as OnChainInvoice).invoiceType !== 2,
+    },
   });
 
-  // Get full fee breakdown for display
+  // Fee breakdown for display
   const { data: feeBreakdown } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: ABI,
     functionName: "calculateTotalDue",
     args: [invoiceId],
     chainId: CHAIN.id,
-    query: { enabled: !!rawInvoice },
+    query: {
+      enabled: !!rawInvoice && (rawInvoice as OnChainInvoice).invoiceType !== 2,
+    },
   });
+
+  // Next milestone client total — only fetch when we know which index to release
+  // Sequential: next index = milestonesReleased count
+  const inv = rawInvoice as OnChainInvoice | undefined;
+  const milestones = (rawMilestones as OnChainMilestone[] | undefined) ?? [];
+  const nextMilestoneIndex = inv ? Number(inv.milestonesReleased) : 0;
+  const isMilestone = inv?.invoiceType === 2;
+  const allMilestonesReleased =
+    isMilestone &&
+    milestones.length > 0 &&
+    nextMilestoneIndex >= milestones.length;
+
+  const { data: milestoneClientTotal, refetch: refetchMilestoneTotal } =
+    useReadContract({
+      address: CONTRACT_ADDRESS,
+      abi: ABI,
+      functionName: "getMilestoneClientTotal",
+      args: [invoiceId, BigInt(nextMilestoneIndex)],
+      chainId: CHAIN.id,
+      query: {
+        enabled: isMilestone && !allMilestonesReleased && milestones.length > 0,
+      },
+    });
 
   const { data: connectorClient } = useConnectorClient({ chainId: CHAIN.id });
   const walletClient = connectorClient?.extend(walletActions);
 
-  //  Transaction watchers
+  //  Tx watchers
   const { isSuccess: isApproved } = useWaitForTransactionReceipt({
     hash: approveHash,
   });
@@ -183,23 +233,34 @@ export default function InvoiceDetail() {
     useWaitForTransactionReceipt({ hash: cancelHash });
   const { isLoading: isConfirmingDispute, isSuccess: isDisputed } =
     useWaitForTransactionReceipt({ hash: disputeHash });
+  const { isSuccess: isMilestoneApproved } = useWaitForTransactionReceipt({
+    hash: milestoneApproveHash,
+  });
+  const { isLoading: isConfirmingMilestone, isSuccess: isMilestoneReleased } =
+    useWaitForTransactionReceipt({ hash: milestonePayHash });
 
-  //  Effects ─
+  //  Effects
 
-  // Approval confirmed → send payment
+  // Standard: approval confirmed → send payment
   useEffect(() => {
-    if (!isApproved || step !== "approving" || !walletClient || !address)
+    if (
+      !isApproved ||
+      step !== "approving" ||
+      !walletClient ||
+      !address ||
+      !inv
+    )
       return;
+    const feeCurrency = getFeeCurrency(inv.token);
     setStep("paying");
     toast.info("Step 2/2: Sending payment...");
-
     walletClient
       .writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: "payInvoice",
         args: [invoiceId],
-        feeCurrency: feeCurrency,
+        feeCurrency,
         chain: CHAIN,
         account: address,
       })
@@ -216,7 +277,7 @@ export default function InvoiceDetail() {
       });
   }, [isApproved]);
 
-  // Payment confirmed
+  // Standard: payment confirmed
   useEffect(() => {
     if (!isPaid) return;
     toast.success("Payment confirmed! ✓");
@@ -224,6 +285,58 @@ export default function InvoiceDetail() {
     setIsPending(false);
     refetch();
   }, [isPaid]);
+
+  // Milestone: approval confirmed → releaseMilestone
+  useEffect(() => {
+    if (
+      !isMilestoneApproved ||
+      step !== "releasing" ||
+      !walletClient ||
+      !address ||
+      !inv
+    )
+      return;
+    if (releasingIndex === null) return;
+    const feeCurrency = getFeeCurrency(inv.token);
+    toast.info("Step 2/2: Releasing milestone...");
+    walletClient
+      .writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: ABI,
+        functionName: "releaseMilestone",
+        args: [invoiceId, BigInt(releasingIndex)],
+        feeCurrency,
+        chain: CHAIN,
+        account: address,
+      })
+      .then((hash) => {
+        setMilestonePayHash(hash);
+        toast.success("Release submitted! Confirming...");
+      })
+      .catch((err: any) => {
+        const msg = err?.shortMessage ?? err?.message ?? "Release failed";
+        setError(msg);
+        toast.error(msg);
+        setStep("idle");
+        setIsPending(false);
+        setReleasingIndex(null);
+      });
+  }, [isMilestoneApproved]);
+
+  // Milestone: release confirmed
+  useEffect(() => {
+    if (!isMilestoneReleased) return;
+    const idx = releasingIndex;
+    toast.success(`Milestone ${idx !== null ? idx + 1 : ""} released! ✓`);
+    setStep("idle");
+    setIsPending(false);
+    setReleasingIndex(null);
+    setMilestoneApproveHash(undefined);
+    setMilestonePayHash(undefined);
+    refetch();
+    refetchMilestones();
+    refetchMilestoneTotal();
+  }, [isMilestoneReleased]);
 
   // Cancel confirmed
   useEffect(() => {
@@ -246,19 +359,19 @@ export default function InvoiceDetail() {
 
   // Fetch IPFS metadata
   useEffect(() => {
-    const inv = rawInvoice as OnChainInvoice | undefined;
-    if (!inv?.metadataCID) return;
+    const invoice = rawInvoice as OnChainInvoice | undefined;
+    if (!invoice?.metadataCID) return;
     setMetaLoading(true);
     const gateway =
       process.env.NEXT_PUBLIC_PINATA_GATEWAY ?? "https://gateway.pinata.cloud";
-    fetch(`${gateway}/ipfs/${inv.metadataCID}`)
+    fetch(`${gateway}/ipfs/${invoice.metadataCID}`)
       .then((r) => r.json())
       .then((data) => setMetadata(data))
       .catch(() => setMetadata(null))
       .finally(() => setMetaLoading(false));
   }, [(rawInvoice as any)?.metadataCID]);
 
-  //  Loading / not found states
+  //  Loading / not found
   if (isLoading) {
     return (
       <Layout>
@@ -291,56 +404,53 @@ export default function InvoiceDetail() {
     );
   }
 
-  //  Parse on-chain data ─
-  const inv = rawInvoice as OnChainInvoice;
-
-  const tokenKey = inv.token.toLowerCase();
-
+  //  Parse on-chain data
+  const tokenKey = inv!.token.toLowerCase();
   const tokenInfo = TOKEN_CONFIG[tokenKey] ?? { symbol: "cUSD", decimals: 18 };
-  const status = STATUS_MAP[inv.status] ?? "Unpaid";
-
-  const invoiceType = INVOICE_TYPE_MAP[inv.invoiceType] ?? "Standard";
-
-  const amount = parseFloat(formatUnits(inv.amount, tokenInfo.decimals));
-
-  const feeCurrency = getFeeCurrency(inv.token);
-
+  const status = STATUS_MAP[inv!.status] ?? "Unpaid";
+  const invoiceType = INVOICE_TYPE_MAP[inv!.invoiceType] ?? "Standard";
+  const feeCurrency = getFeeCurrency(inv!.token);
+  const amount = parseFloat(formatUnits(inv!.amount, tokenInfo.decimals));
   const platformFee = amount * 0.02;
-  const clientPays = amount + platformFee; // creator gets full amount
+  const clientPays = amount + platformFee;
 
-  // Late fee from contract breakdown
   const breakdown = feeBreakdown as any;
   const lateFee = breakdown
     ? parseFloat(formatUnits(breakdown[1] as bigint, tokenInfo.decimals))
     : 0;
   const daysLate = breakdown ? Number(breakdown[2]) : 0;
 
-  // Exact approval amount from contract
   const approvalAmount = clientTotal as bigint | undefined;
 
   const dueDate =
-    inv.dueDate > BigInt(0)
-      ? new Date(Number(inv.dueDate) * 1000).toLocaleDateString()
+    inv!.dueDate > BigInt(0)
+      ? new Date(Number(inv!.dueDate) * 1000).toLocaleDateString()
       : "No deadline";
-  const createdAt = new Date(Number(inv.createdAt) * 1000).toLocaleDateString();
+  const createdAt = new Date(
+    Number(inv!.createdAt) * 1000,
+  ).toLocaleDateString();
   const paidAt =
-    inv.paidAt > BigInt(0)
-      ? new Date(Number(inv.paidAt) * 1000).toLocaleDateString()
+    inv!.paidAt > BigInt(0)
+      ? new Date(Number(inv!.paidAt) * 1000).toLocaleDateString()
       : null;
   const nextDueDate =
-    inv.nextDueDate > BigInt(0)
-      ? new Date(Number(inv.nextDueDate) * 1000).toLocaleDateString()
+    inv!.nextDueDate > BigInt(0)
+      ? new Date(Number(inv!.nextDueDate) * 1000).toLocaleDateString()
       : null;
   const totalCollected = parseFloat(
-    formatUnits(inv.totalCollected, tokenInfo.decimals),
+    formatUnits(inv!.totalCollected, tokenInfo.decimals),
   );
 
-  const isCreator = address?.toLowerCase() === inv.creator.toLowerCase();
-  const isClient = address?.toLowerCase() === inv.client.toLowerCase();
+  const isCreator = address?.toLowerCase() === inv!.creator.toLowerCase();
+  const isClient = address?.toLowerCase() === inv!.client.toLowerCase();
   const isOpenInvoice =
-    inv.client === "0x0000000000000000000000000000000000000000";
+    inv!.client === "0x0000000000000000000000000000000000000000";
   const isSubmitting =
-    isPending || isConfirmingPay || isConfirmingCancel || isConfirmingDispute;
+    isPending ||
+    isConfirmingPay ||
+    isConfirmingCancel ||
+    isConfirmingDispute ||
+    isConfirmingMilestone;
   const canPay = status === "Unpaid" || status === "Overdue";
   const canCancel = isCreator && (status === "Unpaid" || status === "Overdue");
   const canDispute =
@@ -349,10 +459,26 @@ export default function InvoiceDetail() {
     status !== "Cancelled" &&
     status !== "Disputed";
 
+  // Milestone helpers
+  const nextMilestone = milestones[nextMilestoneIndex] ?? null;
+  const nextMilestoneAmount = nextMilestone
+    ? parseFloat(formatUnits(nextMilestone.amount, tokenInfo.decimals))
+    : 0;
+  const nextMilestonePlatformFee = nextMilestoneAmount * 0.02;
+  const milestoneApprovalAmount = milestoneClientTotal as bigint | undefined;
+
+  // Can the current user release the next milestone?
+  const canReleaseMilestone =
+    isMilestone &&
+    !allMilestonesReleased &&
+    (isClient || isOpenInvoice) &&
+    status !== "Cancelled" &&
+    status !== "Disputed";
+
   //  Handlers
   const handleShare = () => {
     if (typeof window === "undefined") return;
-    const link = `${window.location.origin}/invoice-details/${inv.id.toString()}`;
+    const link = `${window.location.origin}/invoice-detail/${inv!.id.toString()}`;
     navigator.clipboard.writeText(link);
     toast.success("Invoice link copied!");
   };
@@ -366,19 +492,17 @@ export default function InvoiceDetail() {
       toast.error("Could not calculate payment amount");
       return;
     }
-
     setError(null);
     setIsPending(true);
     setStep("approving");
-
     try {
       toast.info("Step 1/2: Approving token spend...");
       const hash = await walletClient.writeContract({
-        address: inv.token,
+        address: inv!.token,
         abi: USDM_ABI,
         functionName: "approve",
         args: [CONTRACT_ADDRESS, approvalAmount],
-        feeCurrency: feeCurrency,
+        feeCurrency,
         chain: CHAIN,
         account: address,
       });
@@ -393,24 +517,67 @@ export default function InvoiceDetail() {
     }
   };
 
+  // Milestone release — sequential: always releases nextMilestoneIndex
+  const handleReleaseMilestone = async () => {
+    if (!walletClient || !address) {
+      toast.error("Wallet not ready");
+      return;
+    }
+    if (!milestoneApprovalAmount) {
+      toast.error("Could not calculate milestone amount");
+      return;
+    }
+    if (nextMilestone?.released) {
+      toast.error("This milestone is already released");
+      return;
+    }
+
+    setError(null);
+    setIsPending(true);
+    setStep("releasing");
+    setReleasingIndex(nextMilestoneIndex);
+
+    try {
+      toast.info(
+        `Step 1/2: Approving milestone ${nextMilestoneIndex + 1} payment...`,
+      );
+      const hash = await walletClient.writeContract({
+        address: inv!.token,
+        abi: USDM_ABI,
+        functionName: "approve",
+        args: [CONTRACT_ADDRESS, milestoneApprovalAmount],
+        feeCurrency,
+        chain: CHAIN,
+        account: address,
+      });
+      setMilestoneApproveHash(hash);
+      toast.info("Waiting for approval...");
+    } catch (err: any) {
+      const msg = err?.shortMessage ?? err?.message ?? "Approval failed";
+      setError(msg);
+      toast.error(msg);
+      setStep("idle");
+      setIsPending(false);
+      setReleasingIndex(null);
+    }
+  };
+
   const handleCancel = async () => {
     if (!walletClient || !address) {
       toast.error("Wallet not ready");
       return;
     }
     if (!confirm("Are you sure you want to cancel this invoice?")) return;
-
     setError(null);
     setIsPending(true);
     setStep("cancelling");
-
     try {
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: "cancelInvoice",
         args: [invoiceId],
-        feeCurrency: feeCurrency,
+        feeCurrency,
         chain: CHAIN,
         account: address,
       });
@@ -434,18 +601,16 @@ export default function InvoiceDetail() {
       toast.error("Please provide a reason for the dispute");
       return;
     }
-
     setError(null);
     setIsPending(true);
     setStep("disputing");
-
     try {
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
         abi: ABI,
         functionName: "disputeInvoice",
         args: [invoiceId, disputeReason.trim()],
-        feeCurrency: feeCurrency,
+        feeCurrency,
         chain: CHAIN,
         account: address,
       });
@@ -464,7 +629,7 @@ export default function InvoiceDetail() {
   return (
     <Layout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/*  Header ─ */}
+        {/* Header */}
         <div className="bg-[#1B4332] px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button onClick={() => router.back()} className="text-white">
@@ -473,7 +638,7 @@ export default function InvoiceDetail() {
             <div>
               <h1 className="text-white text-xl font-bold">Invoice Details</h1>
               <p className="text-white/60 text-xs font-mono">
-                {inv.invoiceRef}
+                {inv!.invoiceRef}
               </p>
             </div>
           </div>
@@ -484,7 +649,7 @@ export default function InvoiceDetail() {
         </div>
 
         <div className="p-6 space-y-4 pb-10">
-          {/*  Open invoice banner  */}
+          {/* Banners */}
           {isOpenInvoice && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
@@ -493,8 +658,6 @@ export default function InvoiceDetail() {
               </p>
             </div>
           )}
-
-          {/*  Overdue warning  */}
           {status === "Overdue" && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
@@ -509,8 +672,6 @@ export default function InvoiceDetail() {
               </p>
             </motion.div>
           )}
-
-          {/*  Disputed banner  */}
           {status === "Disputed" && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
               <div className="flex items-center gap-2 mb-1">
@@ -519,30 +680,30 @@ export default function InvoiceDetail() {
                   Disputed
                 </p>
               </div>
-              {inv.disputeReason && (
+              {inv!.disputeReason && (
                 <p className="text-orange-600 text-xs ml-6">
-                  "{inv.disputeReason}"
+                  "{inv!.disputeReason}"
                 </p>
               )}
             </div>
           )}
 
-          {/*  Main invoice card  */}
+          {/* Main card */}
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            {/* Title + meta */}
+            {/* Title */}
             <div className="p-5 border-b border-gray-100">
               <div className="flex items-start justify-between mb-1">
                 <h2 className="text-xl font-bold text-gray-800 flex-1 pr-2">
                   {metaLoading ? (
                     <span className="text-gray-300">Loading...</span>
                   ) : (
-                    (metadata?.title ?? inv.invoiceRef)
+                    (metadata?.title ?? inv!.invoiceRef)
                   )}
                 </h2>
                 <TokenBadge token={tokenInfo.symbol} />
               </div>
               <p className="text-xs text-gray-400 font-mono">
-                {inv.invoiceRef}
+                {inv!.invoiceRef}
               </p>
             </div>
 
@@ -555,7 +716,7 @@ export default function InvoiceDetail() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">From (Creator)</p>
                   <p className="text-sm font-mono text-gray-700 truncate">
-                    {inv.creator.slice(0, 6)}...{inv.creator.slice(-4)}
+                    {inv!.creator.slice(0, 6)}...{inv!.creator.slice(-4)}
                     {isCreator && (
                       <span className="ml-2 text-xs text-[#1B4332] bg-[#1B4332]/10 px-1.5 py-0.5 rounded-full">
                         You
@@ -575,7 +736,7 @@ export default function InvoiceDetail() {
                   <p className="text-sm font-mono text-gray-700 truncate">
                     {isOpenInvoice
                       ? "Anyone can pay"
-                      : `${inv.client.slice(0, 6)}...${inv.client.slice(-4)}`}
+                      : `${inv!.client.slice(0, 6)}...${inv!.client.slice(-4)}`}
                     {isClient && (
                       <span className="ml-2 text-xs text-[#1B4332] bg-[#1B4332]/10 px-1.5 py-0.5 rounded-full">
                         You
@@ -635,7 +796,7 @@ export default function InvoiceDetail() {
                   <p className="text-sm text-blue-700 flex items-center gap-2">
                     <RefreshCw className="w-4 h-4" />
                     <span className="font-semibold">
-                      Recurring {INTERVAL_DISPLAY[inv.interval]}
+                      Recurring {INTERVAL_DISPLAY[inv!.interval]}
                     </span>
                   </p>
                   <p className="text-xs text-blue-600">
@@ -645,7 +806,7 @@ export default function InvoiceDetail() {
               </div>
             )}
 
-            {/* Line items from IPFS */}
+            {/* Line items */}
             {metadata?.items && metadata.items.length > 0 && (
               <div className="px-5 py-4 border-b border-gray-100">
                 <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
@@ -662,10 +823,7 @@ export default function InvoiceDetail() {
                   </thead>
                   <tbody>
                     {metadata.items.map((item, i) => (
-                      <tr
-                        key={i}
-                        className={`${i % 2 === 1 ? "bg-gray-50" : ""}`}
-                      >
+                      <tr key={i} className={i % 2 === 1 ? "bg-gray-50" : ""}>
                         <td className="py-2 text-gray-700">{item.name}</td>
                         <td className="text-right text-gray-600">
                           {item.quantity}
@@ -683,47 +841,165 @@ export default function InvoiceDetail() {
               </div>
             )}
 
-            {/* Milestone phases from IPFS */}
-            {invoiceType === "Milestone" && metadata?.milestones && (
+            {/*  Milestone phases  */}
+            {isMilestone && (
               <div className="px-5 py-4 border-b border-gray-100">
                 <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
                   Milestone Phases
                 </p>
-                <div className="space-y-2">
-                  {metadata.milestones.map((m, i) => (
-                    <div key={i} className="flex items-center gap-3 py-2">
+                <div className="space-y-3">
+                  {(metadata?.milestones ?? []).map((m, i) => {
+                    const onChain = milestones[i];
+                    const isReleased =
+                      onChain?.released ?? i < Number(inv!.milestonesReleased);
+                    const phaseAmount = onChain
+                      ? parseFloat(
+                          formatUnits(onChain.amount, tokenInfo.decimals),
+                        )
+                      : 0;
+                    const isNext = i === nextMilestoneIndex && !isReleased;
+                    const isPast = i < nextMilestoneIndex;
+                    const isFuture = i > nextMilestoneIndex;
+
+                    return (
                       <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                          i < Number(inv.milestonesReleased)
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-500"
+                        key={i}
+                        className={`rounded-xl border p-4 transition-all ${
+                          isNext
+                            ? "border-[#1B4332] bg-[#1B4332]/5"
+                            : isReleased
+                              ? "border-green-200 bg-green-50"
+                              : "border-gray-200 bg-white"
                         }`}
                       >
-                        {i < Number(inv.milestonesReleased) ? "✓" : i + 1}
+                        <div className="flex items-start gap-3">
+                          {/* Phase indicator */}
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+                              isReleased
+                                ? "bg-green-500 text-white"
+                                : isNext
+                                  ? "bg-[#1B4332] text-white"
+                                  : "bg-gray-200 text-gray-500"
+                            }`}
+                          >
+                            {isReleased ? "✓" : i + 1}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <p
+                                className={`text-sm font-semibold ${
+                                  isReleased
+                                    ? "text-green-700"
+                                    : isNext
+                                      ? "text-[#1B4332]"
+                                      : "text-gray-500"
+                                }`}
+                              >
+                                {m.description}
+                              </p>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                                  isReleased
+                                    ? "bg-green-100 text-green-700"
+                                    : isNext
+                                      ? "bg-[#1B4332]/10 text-[#1B4332]"
+                                      : "bg-gray-100 text-gray-400"
+                                }`}
+                              >
+                                {isReleased
+                                  ? "Released"
+                                  : isNext
+                                    ? "Up next"
+                                    : "Pending"}
+                              </span>
+                            </div>
+
+                            {/* Amount row */}
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm text-gray-500">
+                                {phaseAmount.toFixed(2)} {tokenInfo.symbol}
+                                {isNext && (
+                                  <span className="text-gray-400 text-xs ml-1">
+                                    + {(phaseAmount * 0.02).toFixed(2)} fee
+                                  </span>
+                                )}
+                              </p>
+                              {onChain?.releasedAt &&
+                                onChain.releasedAt > BigInt(0) && (
+                                  <p className="text-xs text-green-600">
+                                    {new Date(
+                                      Number(onChain.releasedAt) * 1000,
+                                    ).toLocaleDateString()}
+                                  </p>
+                                )}
+                            </div>
+
+                            {/* Release button — only on the next milestone, only for client */}
+                            {isNext && canReleaseMilestone && (
+                              <button
+                                onClick={handleReleaseMilestone}
+                                disabled={
+                                  isSubmitting || !milestoneApprovalAmount
+                                }
+                                className="mt-3 w-full bg-[#1B4332] text-white py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {step === "releasing" &&
+                                releasingIndex === i ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    {milestoneApproveHash &&
+                                    !isMilestoneApproved
+                                      ? "Approving..."
+                                      : "Releasing..."}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Wallet className="w-4 h-4" />
+                                    Release {phaseAmount.toFixed(2)}{" "}
+                                    {tokenInfo.symbol}
+                                    {milestoneApprovalAmount && (
+                                      <span className="text-white/70 text-xs">
+                                        (pay{" "}
+                                        {parseFloat(
+                                          formatUnits(
+                                            milestoneApprovalAmount,
+                                            tokenInfo.decimals,
+                                          ),
+                                        ).toFixed(2)}
+                                        )
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            {/* Creator view for next milestone */}
+                            {isNext &&
+                              isCreator &&
+                              !isClient &&
+                              !isOpenInvoice && (
+                                <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                  <p className="text-xs text-amber-700">
+                                    Awaiting client payment for this phase
+                                  </p>
+                                </div>
+                              )}
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-700 flex-1">
-                        {m.description}
-                      </p>
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          i < Number(inv.milestonesReleased)
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {i < Number(inv.milestonesReleased)
-                          ? "Released"
-                          : "Pending"}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+
                 {/* Progress bar */}
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-gray-400 mb-1.5">
                     <span>
-                      {Number(inv.milestonesReleased)} of{" "}
-                      {metadata.milestones.length} released
+                      {Number(inv!.milestonesReleased)} of {milestones.length}{" "}
+                      phases released
                     </span>
                     <span>
                       {totalCollected.toFixed(2)} {tokenInfo.symbol} collected
@@ -731,13 +1007,26 @@ export default function InvoiceDetail() {
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#1B4332] rounded-full transition-all"
+                      className="h-full bg-[#1B4332] rounded-full transition-all duration-500"
                       style={{
-                        width: `${(Number(inv.milestonesReleased) / metadata.milestones.length) * 100}%`,
+                        width:
+                          milestones.length > 0
+                            ? `${(Number(inv!.milestonesReleased) / milestones.length) * 100}%`
+                            : "0%",
                       }}
                     />
                   </div>
                 </div>
+
+                {/* All done banner */}
+                {allMilestonesReleased && (
+                  <div className="mt-4 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    <p className="text-green-700 text-sm font-semibold">
+                      All milestones released — invoice complete!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -753,68 +1042,73 @@ export default function InvoiceDetail() {
               </div>
             )}
 
-            {/* Fee breakdown */}
-            <div className="px-5 py-4">
-              <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
-                {isCreator ? "What you receive" : "Payment Breakdown"}
-              </p>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between text-gray-600">
-                  <span>Invoice amount</span>
-                  <span>
-                    {amount.toFixed(2)} {tokenInfo.symbol}
-                  </span>
-                </div>
-                {lateFee > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span>Late fee ({daysLate} days)</span>
+            {/* Fee breakdown — standard/recurring only */}
+            {!isMilestone && (
+              <div className="px-5 py-4">
+                <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
+                  {isCreator ? "What you receive" : "Payment Breakdown"}
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Invoice amount</span>
                     <span>
-                      +{lateFee.toFixed(2)} {tokenInfo.symbol}
+                      {amount.toFixed(2)} {tokenInfo.symbol}
                     </span>
                   </div>
-                )}
-                <div className="flex justify-between text-gray-400">
-                  <span>Platform fee (2%) — paid by client</span>
-                  <span>
-                    +{platformFee.toFixed(2)} {tokenInfo.symbol}
-                  </span>
-                </div>
-                <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-gray-900">
-                  {isCreator ? (
-                    <>
-                      <span className="text-[#1B4332]">You receive ✓</span>
-                      <span className="text-[#1B4332] text-lg">
-                        {(amount + lateFee).toFixed(2)} {tokenInfo.symbol}
+                  {lateFee > 0 && (
+                    <div className="flex justify-between text-red-600">
+                      <span>Late fee ({daysLate} days)</span>
+                      <span>
+                        +{lateFee.toFixed(2)} {tokenInfo.symbol}
                       </span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Total due</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">
-                          {approvalAmount
-                            ? parseFloat(
-                                formatUnits(approvalAmount, tokenInfo.decimals),
-                              ).toFixed(2)
-                            : clientPays.toFixed(2)}
-                        </span>
-                        <TokenBadge token={tokenInfo.symbol} />
-                      </div>
-                    </>
+                    </div>
                   )}
+                  <div className="flex justify-between text-gray-400">
+                    <span>Platform fee (2%) — paid by client</span>
+                    <span>
+                      +{platformFee.toFixed(2)} {tokenInfo.symbol}
+                    </span>
+                  </div>
+                  <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-gray-900">
+                    {isCreator ? (
+                      <>
+                        <span className="text-[#1B4332]">You receive ✓</span>
+                        <span className="text-[#1B4332] text-lg">
+                          {(amount + lateFee).toFixed(2)} {tokenInfo.symbol}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Total due</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {approvalAmount
+                              ? parseFloat(
+                                  formatUnits(
+                                    approvalAmount,
+                                    tokenInfo.decimals,
+                                  ),
+                                ).toFixed(2)
+                              : clientPays.toFixed(2)}
+                          </span>
+                          <TokenBadge token={tokenInfo.symbol} />
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/*  Error  */}
+          {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
               {error}
             </div>
           )}
 
-          {/*  Step banners  */}
+          {/* Step banners */}
           {step === "approving" && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2 text-amber-700 text-sm">
               <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
@@ -827,8 +1121,16 @@ export default function InvoiceDetail() {
               Step 2/2: Confirming payment on-chain...
             </div>
           )}
+          {step === "releasing" && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2 text-amber-700 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              {milestoneApproveHash && !isMilestoneApproved
+                ? `Step 1/2: Approving milestone ${releasingIndex !== null ? releasingIndex + 1 : ""}...`
+                : `Step 2/2: Releasing milestone ${releasingIndex !== null ? releasingIndex + 1 : ""}...`}
+            </div>
+          )}
 
-          {/*  Dispute input ─ */}
+          {/* Dispute input */}
           {showDisputeInput && (
             <div className="bg-white rounded-xl border border-orange-200 p-4 space-y-3">
               <p className="text-sm font-semibold text-gray-700">
@@ -866,10 +1168,10 @@ export default function InvoiceDetail() {
             </div>
           )}
 
-          {/*  Action Buttons  */}
+          {/* Action buttons */}
           <div className="space-y-3">
-            {/* CLIENT — Pay button */}
-            {(isClient || isOpenInvoice) && canPay && (
+            {/* Standard/Recurring pay button */}
+            {!isMilestone && (isClient || isOpenInvoice) && canPay && (
               <button
                 onClick={handlePay}
                 disabled={isSubmitting || !approvalAmount}
@@ -894,7 +1196,7 @@ export default function InvoiceDetail() {
               </button>
             )}
 
-            {/* CREATOR — Share */}
+            {/* Creator share */}
             {isCreator && (
               <button
                 onClick={handleShare}
@@ -908,7 +1210,7 @@ export default function InvoiceDetail() {
             {/* Receipt */}
             {status === "Paid" && (
               <button
-                onClick={() => router.push(`/receipt/${inv.id.toString()}`)}
+                onClick={() => router.push(`/receipt/${inv!.id.toString()}`)}
                 className="w-full bg-green-500 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-semibold hover:opacity-90 transition-opacity"
               >
                 <Receipt className="w-5 h-5" />
@@ -916,9 +1218,8 @@ export default function InvoiceDetail() {
               </button>
             )}
 
-            {/* Secondary actions row */}
+            {/* Secondary row */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Cancel */}
               {canCancel && (
                 <button
                   onClick={handleCancel}
@@ -933,8 +1234,6 @@ export default function InvoiceDetail() {
                   {isConfirmingCancel ? "Cancelling..." : "Cancel"}
                 </button>
               )}
-
-              {/* Dispute */}
               {canDispute && !showDisputeInput && (
                 <button
                   onClick={() => setShowDisputeInput(true)}
@@ -945,8 +1244,6 @@ export default function InvoiceDetail() {
                   Dispute
                 </button>
               )}
-
-              {/* Share (non-creator) */}
               {!isCreator && (
                 <button
                   onClick={handleShare}
@@ -958,7 +1255,6 @@ export default function InvoiceDetail() {
               )}
             </div>
 
-            {/* Cancelled / Paid states */}
             {status === "Cancelled" && (
               <div className="w-full bg-gray-100 border border-gray-200 text-gray-500 py-4 rounded-xl flex items-center justify-center gap-2">
                 <XCircle className="w-5 h-5" />
