@@ -829,10 +829,12 @@ export default function InvoiceDetail() {
                           {item.quantity}
                         </td>
                         <td className="text-right text-gray-600">
-                          {item.unitPrice}
+                          {/* {item.unitPrice} */}
+                          {parseFloat(item.unitPrice).toFixed(2)}
                         </td>
                         <td className="text-right font-medium text-gray-800">
-                          {item.total}
+                          {/* {item.total} */}
+                          {parseFloat(item.total).toFixed(2)}
                         </td>
                       </tr>
                     ))}
@@ -1059,14 +1061,14 @@ export default function InvoiceDetail() {
                     <div className="flex justify-between text-red-600">
                       <span>Late fee ({daysLate} days)</span>
                       <span>
-                        +{lateFee.toFixed(2)} {tokenInfo.symbol}
+                        +{lateFee.toFixed(3)} {tokenInfo.symbol}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between text-gray-400">
                     <span>Platform fee (2%) — paid by client</span>
                     <span>
-                      +{platformFee.toFixed(2)} {tokenInfo.symbol}
+                      +{platformFee.toFixed(3)} {tokenInfo.symbol}
                     </span>
                   </div>
                   <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-gray-900">
