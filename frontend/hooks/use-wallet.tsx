@@ -11,8 +11,8 @@ import { sdk } from "@farcaster/miniapp-sdk";
 
 const IS_TESTNET = false;
 const USDM_SEPOLIA = "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b" as const;
-const USDM_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a" as const;
-const USDM_ADDRESS = IS_TESTNET ? USDM_SEPOLIA : USDM_MAINNET;
+const USDT_MAINNET = "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e" as const;
+const USDT_ADDRESS = IS_TESTNET ? USDM_SEPOLIA : USDT_MAINNET;
 const CHAIN_ID = IS_TESTNET ? celoSepolia.id : celo.id;
 
 export function useWallet() {
@@ -64,7 +64,7 @@ export function useWallet() {
     if (!publicClient) return "0";
     const contract = getContract({
       abi: erc20Abi,
-      address: USDM_ADDRESS,
+      address: USDT_ADDRESS,
       client: publicClient,
     });
     const balance = await contract.read.balanceOf([userAddress]);
