@@ -76,7 +76,7 @@ export default function LandingPage() {
                 Open in Farcaster
                 <ChevronRight className="w-5 h-5" />
               </a>
-              <a
+              {/* <a
                 href={MINIPAY_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -84,7 +84,7 @@ export default function LandingPage() {
               >
                 Get MiniPay
                 <ExternalLink className="w-4 h-4" />
-              </a>
+              </a> */}
             </div>
 
             {/* Trust line */}
@@ -279,14 +279,14 @@ export default function LandingPage() {
             >
               Open in Farcaster <ChevronRight className="w-5 h-5" />
             </a>
-            <a
+            {/* <a
               href={MINIPAY_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="bg-white/10 border border-white/20 text-white px-8 py-4 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-white/20 transition-colors"
             >
               Get MiniPay <ExternalLink className="w-4 h-4" />
-            </a>
+            </a> */}
           </div>
         </motion.div>
       </section>
