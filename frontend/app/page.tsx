@@ -1,16 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-export const dynamic = "force-dynamic";
+import LandingPage from "@/components/LandingPage";
 
 export default function Page() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/onboarding");
-  }, []);
-
-  return null;
+  return <LandingPage />;
 }
