@@ -113,16 +113,16 @@ function useInvoiceBatch(ids: bigint[]): Invoice[] {
 //  Component
 export default function Home() {
   const router = useRouter();
-  const { address, getUSDmBalance } = useWallet();
-  const [cUSDBalance, setCUSDBalance] = useState<string | null>(null);
+  const { address, getUSDTBalance } = useWallet();
+  const [USDTBalance, setUSDTBalance] = useState<string | null>(null);
 
-  // Fetch cUSD balance on mount / address change
+  // Fetch USDT balance on mount / address change
   useEffect(() => {
     if (!address) return;
-    setCUSDBalance(null); // reset while loading
-    getUSDmBalance(address)
-      .then((b) => setCUSDBalance(parseFloat(b).toFixed(2)))
-      .catch(() => setCUSDBalance("—"));
+    setUSDTBalance(null); // reset while loading
+    getUSDTBalance(address)
+      .then((b) => setUSDTBalance(parseFloat(b).toFixed(2)))
+      .catch(() => setUSDTBalance("—"));
   }, [address]);
 
   const sentIds = useInvoiceIds(address, "getCreatorInvoices");
@@ -184,11 +184,11 @@ export default function Home() {
           <div className="bg-white/10 rounded-2xl p-5 border border-white/10">
             <p className="text-white/60 text-xs mb-1">USDT Balance</p>
             <h2 className="text-white text-4xl font-bold mb-1">
-              {cUSDBalance === null ? (
+              {USDTBalance === null ? (
                 <span className="text-white/40 text-2xl">Loading...</span>
               ) : (
                 <>
-                  {cUSDBalance}
+                  {USDTBalance}
                   <span className="text-xl ml-2 font-semibold">USDT</span>
                 </>
               )}
