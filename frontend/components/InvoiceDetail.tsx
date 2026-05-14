@@ -44,7 +44,6 @@ const TOKEN_CONFIG: Record<string, { symbol: string; decimals: number }> = {
     decimals: 18,
   },
   "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e": { symbol: "USDT", decimals: 6 },
-
   "0xceba9300f2b948710d2653dd7b07f33a8b32118c": { symbol: "USDC", decimals: 6 },
 };
 
@@ -441,10 +440,13 @@ export default function InvoiceDetail() {
     formatUnits(inv!.totalCollected, tokenInfo.decimals),
   );
 
-  const isCreator = address?.toLowerCase() === inv!.creator.toLowerCase();
-  const isClient = address?.toLowerCase() === inv!.client.toLowerCase();
+  const isCreator =
+    !!address && address.toLowerCase() === inv!.creator.toLowerCase();
+  const isClient =
+    !!address && address.toLowerCase() === inv!.client.toLowerCase();
   const isOpenInvoice =
     inv!.client === "0x0000000000000000000000000000000000000000";
+  const isReadOnly = !address; // no wallet — render read-only view
   const isSubmitting =
     isPending ||
     isConfirmingPay ||
@@ -478,7 +480,7 @@ export default function InvoiceDetail() {
   //  Handlers
   const handleShare = () => {
     if (typeof window === "undefined") return;
-    const link = `${window.location.origin}/invoice-detail/${inv!.id.toString()}`;
+    const link = `${window.location.origin}/invoice-details/${inv!.id.toString()}`;
     navigator.clipboard.writeText(link);
     toast.success("Invoice link copied!");
   };
@@ -829,12 +831,10 @@ export default function InvoiceDetail() {
                           {item.quantity}
                         </td>
                         <td className="text-right text-gray-600">
-                          {/* {item.unitPrice} */}
-                          {parseFloat(item.unitPrice).toFixed(2)}
+                          {item.unitPrice}
                         </td>
                         <td className="text-right font-medium text-gray-800">
-                          {/* {item.total} */}
-                          {parseFloat(item.total).toFixed(2)}
+                          {item.total}
                         </td>
                       </tr>
                     ))}
@@ -1061,14 +1061,14 @@ export default function InvoiceDetail() {
                     <div className="flex justify-between text-red-600">
                       <span>Late fee ({daysLate} days)</span>
                       <span>
-                        +{lateFee.toFixed(3)} {tokenInfo.symbol}
+                        +{lateFee.toFixed(2)} {tokenInfo.symbol}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between text-gray-400">
                     <span>Platform fee (2%) — paid by client</span>
                     <span>
-                      +{platformFee.toFixed(3)} {tokenInfo.symbol}
+                      +{platformFee.toFixed(2)} {tokenInfo.symbol}
                     </span>
                   </div>
                   <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-gray-900">
@@ -1166,6 +1166,57 @@ export default function InvoiceDetail() {
                     "Submit Dispute"
                   )}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/*  Read-only CTA — no wallet connected  */}
+          {isReadOnly && (canPay || isMilestone) && (
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <p className="text-sm font-semibold text-gray-800 mb-1">
+                  Ready to pay this invoice?
+                </p>
+                <p className="text-xs text-gray-500">
+                  Open Decimoon in Farcaster or MiniPay to pay with your wallet.
+                </p>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                <a
+                  href="https://farcaster.xyz/miniapps/Zp22UHY2FcnO/decimoon"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-[#1B4332] text-white py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm hover:opacity-90 transition-opacity"
+                >
+                  Open in Farcaster
+                </a>
+                <a
+                  href="https://minipay.opera.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-white border border-gray-200 text-gray-700 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold text-sm hover:bg-gray-50 transition-colors"
+                >
+                  Get MiniPay
+                </a>
+                <p className="text-xs text-gray-400 text-center">
+                  Already have a wallet?{" "}
+                  <button
+                    onClick={() => {
+                      // trigger injected wallet connect
+                      if (
+                        typeof window !== "undefined" &&
+                        (window as any).ethereum
+                      ) {
+                        (window as any).ethereum.request({
+                          method: "eth_requestAccounts",
+                        });
+                      }
+                    }}
+                    className="text-[#1B4332] font-semibold underline"
+                  >
+                    Connect here
+                  </button>
+                </p>
               </div>
             </div>
           )}
