@@ -1,16 +1,15 @@
 {
-    "accountAssociation": {
-        "header": "eyJmaWQiOjk4MzA5NSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDBBZDE4NTYzY0E0MmU0QTcxZjdGZTA0QTRmQTkyZmMzRDk1NDkzMzMifQ",
-        "payload": "eyJkb21haW4iOiJkZWNpbW9vbi52ZXJjZWwuYXBwIn0",
-        "signature": "WBqHbXoAJkn31996IBUxHyALu3PXghbqpHPDVKW7hTURBnWIKZjHa3vCJv9VWwBeSxzko1l0zpr0AAZwOLNA9xw="
-    },
     "frame": {
-        "version": "1",
         "name": "Decimoon",
-        "iconUrl": "https://decimoon.vercel.app/images/decimoon_splash_500x500.png",
-        "homeUrl": "https://decimoon.vercel.app",
-        "imageUrl": "https://decimoon.vercel.app/images/decimoon_feed_1200x630.png",
-        "splashImageUrl": "https://decimoon.vercel.app/images/decimoon_splash_500x500.png",
-        "splashBackgroundColor": "#1a3a2a"
+        "version": "1",
+        "iconUrl": "https://decimoon.xyz/images/decimoon_splash_500x500.png",
+        "homeUrl": "https://decimoon.xyz",
+        "imageUrl": "https://decimoon.xyz/images/decimoon_feed_1200x630.png",
+        "splashImageUrl": "https://decimoon.xyz/images/decimoon_splash_500x500.png",
+        "splashBackgroundColor": "#1B4332",
+        "webhookUrl": "https://decimoon.xyz/api/webhook",
+        "subtitle": "Create invoices. Get paid on-chain.",
+        "description": "Decimoon lets you create professional invoices and get paid instantly in cUSD, cEUR, USDT or USDC — every payment verified on-chain. No fake alerts, no middlemen, no bank needed.",
+        "primaryCategory": "finance"
     }
 }
