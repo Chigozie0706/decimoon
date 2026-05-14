@@ -11,5 +11,10 @@
         "subtitle": "Create invoices. Get paid on-chain.",
         "description": "Decimoon lets you create professional invoices and get paid instantly in cUSD, cEUR, USDT or USDC — every payment verified on-chain. No fake alerts, no middlemen, no bank needed.",
         "primaryCategory": "finance"
+    },
+    "accountAssociation": {
+        "header": "eyJmaWQiOjk4MzA5NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDYyMUI1RjZmRmFmMjczYkQyOTlGNGZlRDlCZDMwNzlmNmQ5ZDU0NEYifQ",
+        "payload": "eyJkb21haW4iOiJkZWNpbW9vbi54eXoifQ",
+        "signature": "l4Bs+YMrj+QDRiEpQ2T4TwOe5X2AURd4Qmct3dSJPysgf85iQo2oCufx/GXBtGeylrhcqlFF/JRh3w4Db0gysBw="
     }
 }
