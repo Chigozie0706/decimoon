@@ -1,4 +1,9 @@
     {
+        "accountAssociation": {
+            "header": "eyJmaWQiOjk4MzA5NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDYyMUI1RjZmRmFmMjczYkQyOTlGNGZlRDlCZDMwNzlmNmQ5ZDU0NEYifQ",
+            "payload": "eyJkb21haW4iOiJkZWNpbW9vbi54eXoifQ",
+            "signature": "l4Bs+YMrj+QDRiEpQ2T4TwOe5X2AURd4Qmct3dSJPysgf85iQo2oCufx/GXBtGeylrhcqlFF/JRh3w4Db0gysBw="
+        },
         "frame": {
             "name": "Decimoon",
             "version": "1",
