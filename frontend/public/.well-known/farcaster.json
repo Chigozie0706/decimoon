@@ -12,7 +12,6 @@
             "imageUrl": "https://decimoon.xyz/image.png",
             "splashImageUrl": "https://decimoon.xyz/splash.png",
             "splashBackgroundColor": "#1B4332",
-            "webhookUrl": "https://decimoon.xyz/api/webhook",
             "subtitle": "Create invoices. Get paid on-chain.",
             "description": "Decimoon lets you create professional invoices and get paid instantly in cUSD, cEUR, USDT or USDC — every payment verified on-chain. No fake alerts, no middlemen, no bank needed.",
             "primaryCategory": "finance"
