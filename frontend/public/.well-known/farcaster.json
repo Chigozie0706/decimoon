@@ -4,17 +4,10 @@
         "version": "1",
         "iconUrl": "https://decimoon.xyz/icon.png",
         "homeUrl": "https://decimoon.xyz",
-        "imageUrl": "https://decimoon.xyz/image.png",
-        "splashImageUrl": "https://decimoon.xyz/splash.png",
-        "splashBackgroundColor": "#1B4332",
-        "webhookUrl": "https://decimoon.xyz/api/webhook",
         "subtitle": "Create invoices on-chain",
         "description": "Create professional invoices and get paid instantly in cUSD, cEUR, USDT or USDC with secure on-chain verification.",
-        "primaryCategory": "finance"
-    },
-    "accountAssociation": {
-        "header": "eyJmaWQiOjk4MzA5NSwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDYyMUI1RjZmRmFmMjczYkQyOTlGNGZlRDlCZDMwNzlmNmQ5ZDU0NEYifQ",
-        "payload": "eyJkb21haW4iOiJkZWNpbW9vbi54eXoifQ",
-        "signature": "l4Bs+YMrj+QDRiEpQ2T4TwOe5X2AURd4Qmct3dSJPysgf85iQo2oCufx/GXBtGeylrhcqlFF/JRh3w4Db0gysBw="
+        "primaryCategory": "finance",
+        "splashImageUrl": "https://decimoon.xyz/splash.png",
+        "splashBackgroundColor": "#1B4332"
     }
 }
